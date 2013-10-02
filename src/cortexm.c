@@ -375,6 +375,7 @@ cortexm_probe(struct target_s *target)
 	PROBE(lpc11xx_probe);
 	PROBE(lpc43xx_probe);
 	PROBE(sam3x_probe);
+	PROBE(efm32_probe);
 	PROBE(lmi_probe);
 #undef PROBE
 
@@ -642,7 +643,7 @@ cortexm_halt_resume(struct target_s *target, bool step)
 	struct cortexm_priv *priv = ap->priv;
 	uint32_t dhcsr = CORTEXM_DHCSR_DBGKEY | CORTEXM_DHCSR_C_DEBUGEN;
 
-	if(step) dhcsr |= CORTEXM_DHCSR_C_STEP | CORTEXM_DHCSR_C_MASKINTS;
+	if(step) dhcsr |= CORTEXM_DHCSR_C_STEP; // | CORTEXM_DHCSR_C_MASKINTS;
 
 	/* Disable interrupts while single stepping... */
 	if(step != priv->stepping) {

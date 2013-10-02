@@ -1,4 +1,4 @@
-PROBE_HOST ?= native
+PROBE_HOST ?= fox
 PLATFORM_DIR = platforms/$(PROBE_HOST)
 VPATH += $(PLATFORM_DIR)
 
@@ -33,6 +33,7 @@ SRC =			\
 	stm32f1.c	\
 	stm32f4.c	\
 	stm32l1.c	\
+	efm32.c     \
 	swdptap.c	\
 	target.c	\
 
@@ -46,8 +47,8 @@ blackmagic: $(OBJ)
 .PHONY:	clean host_clean
 
 clean:	host_clean
-	$(RM) *.o *.d *~ blackmagic $(HOSTFILES)
-	$(RM) platforms/*/*.o platforms/*/*.d mapfile
+	$(RM) -f *.o *.d *~ blackmagic $(HOSTFILES)
+	$(RM) -f platforms/*/*.o platforms/*/*.d mapfile
 
 -include *.d
 
