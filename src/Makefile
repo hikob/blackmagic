@@ -40,8 +40,9 @@ SRC =			\
 include $(PLATFORM_DIR)/Makefile.inc
 
 OBJ = $(SRC:.c=.o)
+OBJ_S = $(S_SRC:.S=.o)
 
-blackmagic: $(OBJ)
+blackmagic: $(OBJ) $(OBJ_S)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 .PHONY:	clean host_clean
