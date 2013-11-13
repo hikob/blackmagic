@@ -48,11 +48,19 @@ static int efm32_flash_erase(struct target_s *target, uint32_t addr, int len);
 static int efm32_flash_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len);
 
 static const char efm32lg_driver_str[] = "EFM32LG";
+static const char efm32gg_driver_str[] = "EFM32GG";
 
-// TODO
 static const char efm32lg_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 		"<memory-map>"
 		"  <memory type=\"flash\" start=\"0x00000000\" length=\"0x80000\">"
+		"    <property name=\"blocksize\">0x800</property>"
+		"  </memory>"
+		"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x20000\"/>"
+		"</memory-map>";
+
+static const char efm32gg_xml_memory_map[] = "<?xml version=\"1.0\"?>"
+		"<memory-map>"
+		"  <memory type=\"flash\" start=\"0x00000000\" length=\"0x100000\">"
 		"    <property name=\"blocksize\">0x800</property>"
 		"  </memory>"
 		"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x20000\"/>"
@@ -138,7 +146,12 @@ bool efm32_probe(struct target_s *target)
             return false;
 
         case EFM_FAMILY_ID_GIANT_GECKO:
-            return false;
+            target->driver      = efm32gg_driver_str;
+            target->xml_mem_map = efm32gg_xml_memory_map;
+            target->flash_erase = efm32_flash_erase;
+            target->flash_write = efm32_flash_write;
+            page_size = 2048;
+            return true;
 
         case EFM_FAMILY_ID_TINY_GECKO:
             return false;
