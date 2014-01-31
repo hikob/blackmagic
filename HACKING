@@ -75,10 +75,5 @@ Compiling for EnergyMicro
 ------------------------------------------------------
 The EnergyMicro emlib library must be fetch first. Run the following commands 
 to setup your environment:
-wget http://cdn.energymicro.com/dl/packages/EM_CMSIS_3.20.0.zip
-unzip EM_CMSIS_3.20.0.zip -d energymicro
-wget http://cdn.energymicro.com/dl/packages/EM_BSP_COMMON_3.20.0.zip
-unzip EM_BSP_COMMON_3.20.0.zip -d energymicro
-wget http://cdn.energymicro.com/dl/packages/EFM32LG_STK3600_BSP_3.20.0.zip
-unzip EFM32LG_STK3600_BSP_3.20.0.zip -d energymicro
-
+wget http://cdn.energymicro.com/dl/packages/EM_CMSIS_3.20.2.zip
+unzip EM_CMSIS_3.20.2.zip -d energymicro

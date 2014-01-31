@@ -148,7 +148,7 @@ void uart_write(const char* msg)
     const char *c;
     for (c = msg; *c != 0x0; c++)
     {
-        USART_Tx(USART1, *c);
+        USART_Tx(USART2, *c);
     }
 }
 char print_buf[1024];
@@ -157,10 +157,10 @@ char print_buf[1024];
  * @brief main - the entrypoint after reset.
  *****************************************************************************/
 
-#define ACTIVITY_LED            gpioPortE,2
-
 int platform_init()
 {
+    SCB->VTOR=0x4000;
+
     /* Chip errata */
     CHIP_Init();
 
@@ -176,15 +176,19 @@ int platform_init()
     SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 10);
 
     // Custom LED
-    GPIO_PinModeSet(gpioPortE, 3, gpioModePushPull,  0);
+    GPIO_PinModeSet(CUSTOM_LED, gpioModePushPull,  0);
 
     // GPIO prepare
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull,  1);
     GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull,  1);
 
-    GPIO_PinModeSet(JTAG_PORT, TMS_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(JTAG_PORT, TCK_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(JTAG_PORT, TDI_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
+
+    // Enable Target Power
+    GPIO_PinModeSet(TARGET_EN_PORT, TARGET_EN_PIN, gpioModePushPull,  1);
+    GPIO_PinModeSet(TARGET_5V_PORT, TARGET_5V_PIN, gpioModePushPull,  1);
 
     USBD_Init(&initstruct);
 
@@ -312,25 +316,25 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
  *****************************************************************************/
 static void SerialPortInit(void)
 {
-    USART_TypeDef *uart = USART1;
+    USART_TypeDef *uart = USART2;
     USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
 
     /* Configure GPIO pins */
     CMU_ClockEnable(cmuClock_GPIO, true);
     /* To avoid false start, configure output as high */
-    GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortD, 1, gpioModeInput, 0);
+    GPIO_PinModeSet(gpioPortB, 3, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortB, 4, gpioModeInput, 0);
 
     /* Enable peripheral clocks */
     CMU_ClockEnable(cmuClock_HFPER, true);
-    CMU_ClockEnable(cmuClock_USART1, true);
+    CMU_ClockEnable(cmuClock_USART2, true);
 
     /* Configure UART for basic async operation */
     init.enable = usartDisable;
     init.baudrate = 500000;
     USART_InitAsync(uart, &init);
 
-    /* Enable pins at USART1 location #1 */
+    /* Enable pins at USART2 location #1 */
     uart->ROUTE = UART_ROUTE_RXPEN | UART_ROUTE_TXPEN
             | USART_ROUTE_LOCATION_LOC1;
 

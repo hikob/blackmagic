@@ -57,7 +57,9 @@ int gdb_if_init(void)
     /* Start receiving data from USB host. */
     USBD_Read(EP_DATA_OUT, (void*) double_buffer_out, USB_RX_BUF_SIZ,
             UsbDataReceived);
+
     count_new = 0;
+    out_ptr = 0;
 
     return 0;
 }
@@ -76,7 +78,8 @@ void gdb_if_putchar(unsigned char c, int flush)
         }
         usb_transmitted = 0;
         USBD_Write(EP_DATA_IN, (void*) buffer_in, count_in, UsbDataTransmitted);
-        while (usb_transmitted == 0);
+        while (usb_transmitted == 0)
+            ;
         count_in = 0;
     }
 }
@@ -87,7 +90,9 @@ unsigned char gdb_if_getchar(void)
     {
         /* Detach if port closed */
         if (!cdcacm_get_dtr())
+        {
             return 0x04;
+        }
 
         while (cdcacm_get_config() != 1)
             ;
@@ -117,10 +122,13 @@ unsigned char gdb_if_getchar_to(int timeout)
         {
             /* Detach if port closed */
             if (!cdcacm_get_dtr())
+            {
                 return 0x04;
+            }
 
             while (cdcacm_get_config() != 1)
                 ;
+
             if (count_new)
             {
                 memcpy(buffer_out, double_buffer_out, count_new);
@@ -129,8 +137,8 @@ unsigned char gdb_if_getchar_to(int timeout)
                 out_ptr = 0;
 
                 // Start new RX transfer
-                USBD_Read(EP_DATA_OUT, (void*) double_buffer_out, USB_RX_BUF_SIZ,
-                        UsbDataReceived);
+                USBD_Read(EP_DATA_OUT, (void*) double_buffer_out,
+                        USB_RX_BUF_SIZ, UsbDataReceived);
             }
         } while (timeout_counter && !(out_ptr < count_out));
 
@@ -157,7 +165,6 @@ static int UsbDataReceived(USB_Status_TypeDef status, uint32_t xferred,
 
     if ((status == USB_STATUS_OK) && (xferred > 0))
     {
-        double_buffer_out[xferred] = 0;
         count_new = xferred;
     }
 

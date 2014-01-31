@@ -24,24 +24,18 @@ ASMFLAGS += -x assembler-with-cpp -D$(DEVICE) -Wall -Wextra -mcpu=cortex-m3 -mth
 LDFLAGS += -mcpu=cortex-m3 -mthumb \
     -T../energymicro/Device/EnergyMicro/EFM32LG/Source/GCC/efm32lg.ld \
     -Wl,--gc-sections,--no-wchar-size-warning \
-    -Wl,--start-group -lgcc -lc -lnosys   -Wl,--end-group
+    -Wl,--start-group -lgcc -lc -lnosys   -Wl,--end-group -Wl,-Ttext=0x00004000
 
 INCLUDEPATHS += \
 -I../energymicro/CMSIS/Include \
 -I../energymicro/Device/EnergyMicro/EFM32LG/Include \
 -I../energymicro/emlib/inc \
--I../energymicro/usb/inc \
--I../energymicro/kits/common/drivers \
--I../energymicro/kits/common/bsp \
--I../energymicro/kits/EFM32LG_STK3600/config
+-I../energymicro/usb/inc
 
 CFLAGS += -Iplatforms/efm32  $(INCLUDEPATHS)
 
 VPATH += ../energymicro/Device/EnergyMicro/EFM32LG/Source/GCC/ \
     ../energymicro/Device/EnergyMicro/EFM32LG/Source/ \
-    ../energymicro/kits/common/drivers/ \
-    ../energymicro/kits/common/bsp/ \
-    ../energymicro/kits/common/drivers/ \
     ../energymicro/emlib/src/ \
     ../energymicro/usb/src/
 
