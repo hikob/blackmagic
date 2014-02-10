@@ -49,15 +49,6 @@
 
 /*** Typedef's and defines. ***/
 
-/* Define USB endpoint addresses */
-#define EP_DATA_OUT       0x01  /* Endpoint for USB data reception.       */
-#define EP_DATA_IN        0x81  /* Endpoint for USB data transmission.    */
-#define EP_NOTIFY         0x82  /* The notification endpoint (not used).  */
-
-#define BULK_EP_SIZE     USB_MAX_EP_SIZE  /* This is the max. ep size.    */
-#define USB_RX_BUF_SIZ   BULK_EP_SIZE /* Packet size when receiving on USB*/
-#define USB_TX_BUF_SIZ   127    /* Packet size when transmitting on USB.  */
-
 /* The serial port LINE CODING data structure, used to carry information  */
 /* about serial port baudrate, parity etc. between host and device.       */
 EFM32_PACK_START(1)

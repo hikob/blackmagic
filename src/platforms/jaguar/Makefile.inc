@@ -59,7 +59,10 @@ SRC += \
     em_usbhal.c \
     em_usbdep.c \
     em_usbdint.c \
-    em_usbtimer.c
+    em_usbtimer.c \
+    \
+    dmactrl.c \
+    usbuart.c
 
 S_SRC +=  startup_efm32lg.S
 

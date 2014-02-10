@@ -47,29 +47,10 @@
 #include "gdb_main.h"
 #include "jtag_scan.h"
 
+#include "efm_usbuart.h"
+
 /*** Typedef's and defines. ***/
 
-/* Define USB endpoint addresses */
-#define EP_DATA_OUT       0x01  /* Endpoint for USB data reception.       */
-#define EP_DATA_IN        0x81  /* Endpoint for USB data transmission.    */
-#define EP_NOTIFY         0x82  /* The notification endpoint (not used).  */
-
-#define BULK_EP_SIZE     USB_MAX_EP_SIZE  /* This is the max. ep size.    */
-#define USB_RX_BUF_SIZ   BULK_EP_SIZE /* Packet size when receiving on USB*/
-#define USB_TX_BUF_SIZ   127    /* Packet size when transmitting on USB.  */
-
-/* The serial port LINE CODING data structure, used to carry information  */
-/* about serial port baudrate, parity etc. between host and device.       */
-EFM32_PACK_START(1)
-typedef struct
-{
-    uint32_t dwDTERate; /** Baudrate                            */
-    uint8_t bCharFormat; /** Stop bits, 0=1 1=1.5 2=2            */
-    uint8_t bParityType; /** 0=None 1=Odd 2=Even 3=Mark 4=Space  */
-    uint8_t bDataBits; /** 5, 6, 7, 8 or 16                    */
-    uint8_t dummy; /** To ensure size is a multiple of 4 bytes.*/
-}__attribute__ ((packed)) cdcLineCoding_TypeDef;
-EFM32_PACK_END()
 
 static int usb_configured = 0;
 static int usb_cdc_dtr = 0;
@@ -159,7 +140,7 @@ char print_buf[1024];
 
 int platform_init()
 {
-    SCB->VTOR=0x4000;
+    SCB->VTOR = 0x4000;
 
     /* Chip errata */
     CHIP_Init();
@@ -176,19 +157,22 @@ int platform_init()
     SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 10);
 
     // Custom LED
-    GPIO_PinModeSet(CUSTOM_LED, gpioModePushPull,  0);
+    GPIO_PinModeSet(CUSTOM_LED, gpioModePushPull, 0);
 
     // GPIO prepare
-    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull,  1);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull,  1);
+    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
 
     // Enable Target Power
-    GPIO_PinModeSet(TARGET_EN_PORT, TARGET_EN_PIN, gpioModePushPull,  1);
-    GPIO_PinModeSet(TARGET_5V_PORT, TARGET_5V_PIN, gpioModePushPull,  1);
+    GPIO_PinModeSet(TARGET_EN_PORT, TARGET_EN_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(TARGET_5V_PORT, TARGET_5V_PIN, gpioModePushPull, 1);
+
+    // Initialize USB UART
+    usbuart_init(USART1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
 
     USBD_Init(&initstruct);
 
@@ -216,8 +200,6 @@ int platform_init()
 static void StateChange(USBD_State_TypeDef oldState,
         USBD_State_TypeDef newState)
 {
-    uart_printf("USB State changed %x->%x\n", oldState, newState);
-
     if (newState == USBD_STATE_CONFIGURED)
     {
         /* We have been configured, start CDC functionality ! */
@@ -230,7 +212,7 @@ static void StateChange(USBD_State_TypeDef oldState,
         usb_configured = 1;
 
         gdb_if_init();
-
+        usbuart_start();
     }
 
     else if ((oldState == USBD_STATE_CONFIGURED)
@@ -239,6 +221,7 @@ static void StateChange(USBD_State_TypeDef oldState,
         /* We have been de-configured, stop CDC functionality */
         uart_printf("\t\t->Stopped!!\n");
         usb_configured = 0;
+        usbuart_stop();
     }
 
     else if (newState == USBD_STATE_SUSPENDED)
@@ -247,6 +230,7 @@ static void StateChange(USBD_State_TypeDef oldState,
         /* Reduce current consumption to below 2.5 mA.    */
         uart_printf("\t\t->Stopped!!\n");
         usb_configured = 0;
+        usbuart_stop();
     }
 }
 
@@ -279,6 +263,14 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     USBD_Write(0, (void*) &cdcLineCoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
+                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no.            */
+                (setup->wLength == 7) && /* Length of cdcLineCoding  */
+                (setup->Direction == USB_SETUP_DIR_IN))
+                {
+                    /* Send current settings to USB host. */
+                    USBD_Write(0, (void*) &usbuart_cdclinecoding, 7, NULL);
+                    retVal = USB_STATUS_OK;
+                }
                 break;
 
             case USB_CDC_SETLINECODING:
@@ -291,6 +283,14 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     USBD_Read(0, (void*) &cdcLineCoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
+                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no.            */
+                (setup->wLength == 7) && /* Length of cdcLineCoding  */
+                (setup->Direction != USB_SETUP_DIR_IN))
+                {
+                    /* Get new settings from USB host. */
+                    USBD_Read(0, (void*) &usbuart_cdclinecoding, 7, usbuart_LineCodingReceived);
+                    retVal = USB_STATUS_OK;
+                }
                 break;
 
             case USB_CDC_SETCTRLLINESTATE:
@@ -301,7 +301,14 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     usb_cdc_dtr = setup->wValue & 1;
                     uart_printf("USB CDC DTR = %u\n", usb_cdc_dtr);
 
-                    /* Do nothing ( Non compliant behaviour !! ) */
+                    retVal = USB_STATUS_OK;
+                }
+                else if ((setup->wIndex == 2) && /* Interface no.  */
+                (setup->wLength == 0)) /* No data        */
+                {
+                    int uart_dtr = setup->wValue & 1;
+                    uart_printf("USB UART DTR = %u\n", uart_dtr);
+
                     retVal = USB_STATUS_OK;
                 }
                 break;
@@ -316,6 +323,8 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
  *****************************************************************************/
 static void SerialPortInit(void)
 {
+    // Init Debug UART
+
     USART_TypeDef *uart = USART2;
     USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
 
@@ -335,6 +344,30 @@ static void SerialPortInit(void)
     USART_InitAsync(uart, &init);
 
     /* Enable pins at USART2 location #1 */
+    uart->ROUTE = UART_ROUTE_RXPEN | UART_ROUTE_TXPEN
+            | USART_ROUTE_LOCATION_LOC1;
+
+    /* Finally enable it */
+    USART_Enable(uart, usartEnable);
+
+    // Init JTAG UART
+
+    uart = USART1;
+
+    /* Configure GPIO pins */
+    /* To avoid false start, configure output as high */
+    GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortD, 1, gpioModeInput, 0);
+
+    /* Enable peripheral clocks */
+    CMU_ClockEnable(cmuClock_USART1, true);
+
+    /* Configure UART for basic async operation */
+    init.enable = usartDisable;
+    init.baudrate = 500000;
+    USART_InitAsync(uart, &init);
+
+    /* Enable pins at USART1 location #1 */
     uart->ROUTE = UART_ROUTE_RXPEN | UART_ROUTE_TXPEN
             | USART_ROUTE_LOCATION_LOC1;
 
