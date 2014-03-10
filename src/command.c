@@ -50,6 +50,9 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv);
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void);
 #endif
+#ifdef PLATFORM_HAS_POWERCONTROL
+static bool cmd_powercontrol(target *t, int argc, const char **argv);
+#endif
 
 const struct command_s cmd_list[] = {
 	{"version", (cmd_handler)cmd_version, "Display firmware version info"},
@@ -61,6 +64,9 @@ const struct command_s cmd_list[] = {
 	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
 #ifdef PLATFORM_HAS_TRACESWO
 	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
+#endif
+#ifdef PLATFORM_HAS_POWERCONTROL
+    {"power_control", (cmd_handler)cmd_powercontrol, "Control the target power: (3V|5V) (0|1)" },
 #endif
 	{NULL, NULL, NULL}
 };
@@ -232,3 +238,72 @@ static bool cmd_traceswo(void)
 }
 #endif
 
+#undef DEBUG
+#define DEBUG(...) uart_printf(__VA_ARGS__)
+
+#ifdef PLATFORM_HAS_POWERCONTROL
+#include "jaguar.h"
+
+static void cmd_powercontrol_usage()
+{
+    gdb_outf("Usage: power_control (3V|5V) (0|1)\n");
+}
+
+static bool cmd_powercontrol(target *t, int argc, const char **argv)
+{
+    (void)t;
+
+    DEBUG("POWERCONTROL command, argc=%u!!!\n", argc);
+
+    if (argc == 1)
+    {
+        gdb_outf("Current Power: 3V %s, 5V %s\n",
+             jaguar_target_3V_status() ? "enabled" : "disabled",
+                     jaguar_target_5V_status() ? "enabled" : "disabled");
+    }
+    else if (argc  == 3)
+    {
+        if (!strcmp(argv[1], "3V") || !strcmp(argv[1], "3v") )
+        {
+            if (!strcmp(argv[2], "0"))
+            {
+                jaguar_target_3V(0);
+            }
+            else if (!strcmp(argv[2], "1"))
+            {
+                jaguar_target_3V(1);
+            }
+            else
+            {
+                cmd_powercontrol_usage();
+            }
+        }
+        else if (!strcmp(argv[1], "5V") || !strcmp(argv[1], "5v") )
+        {
+            if (!strcmp(argv[2], "0"))
+            {
+                jaguar_target_5V(0);
+            }
+            else if (!strcmp(argv[2], "1"))
+            {
+                jaguar_target_5V(1);
+            }
+            else
+            {
+                cmd_powercontrol_usage();
+            }
+        }
+        else
+        {
+            cmd_powercontrol_usage();
+        }
+    }
+    else
+    {
+        cmd_powercontrol_usage();
+    }
+
+    return true;
+}
+
+#endif

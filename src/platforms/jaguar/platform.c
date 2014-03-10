@@ -35,7 +35,6 @@
 #include "em_device.h"
 #include "em_cmu.h"
 #include "em_dma.h"
-#include "em_dma.h"
 #include "em_gpio.h"
 #include "em_int.h"
 #include "em_usb.h"
@@ -48,6 +47,9 @@
 #include "jtag_scan.h"
 
 #include "efm_usbuart.h"
+#include "usbpowercon.h"
+
+#include "jaguar.h"
 
 /*** Typedef's and defines. ***/
 
@@ -167,12 +169,13 @@ int platform_init()
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
 
-    // Enable Target Power
-    GPIO_PinModeSet(TARGET_EN_PORT, TARGET_EN_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(TARGET_5V_PORT, TARGET_5V_PIN, gpioModePushPull, 1);
+    jaguar_init();
 
     // Initialize USB UART
     usbuart_init(USART1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
+
+    // Initialize USB Power measure
+    usbpowercon_init();
 
     USBD_Init(&initstruct);
 
@@ -212,7 +215,6 @@ static void StateChange(USBD_State_TypeDef oldState,
         usb_configured = 1;
 
         gdb_if_init();
-        usbuart_start();
     }
 
     else if ((oldState == USBD_STATE_CONFIGURED)
@@ -255,7 +257,7 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
         {
             case USB_CDC_GETLINECODING:
                 /********************/
-                if ((setup->wValue == 0) && (setup->wIndex == 0) && /* Interface no.            */
+                if ((setup->wValue == 0) && (setup->wIndex == 0) && /* Interface no. 0 */
                 (setup->wLength == 7) && /* Length of cdcLineCoding  */
                 (setup->Direction == USB_SETUP_DIR_IN))
                 {
@@ -263,7 +265,7 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     USBD_Write(0, (void*) &cdcLineCoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
-                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no.            */
+                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no. 2 */
                 (setup->wLength == 7) && /* Length of cdcLineCoding  */
                 (setup->Direction == USB_SETUP_DIR_IN))
                 {
@@ -271,11 +273,19 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     USBD_Write(0, (void*) &usbuart_cdclinecoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
+                else if ((setup->wValue == 0) && (setup->wIndex == 4) && /* Interface no. 2 */
+                (setup->wLength == 7) && /* Length of cdcLineCoding  */
+                (setup->Direction == USB_SETUP_DIR_IN))
+                {
+                    /* Send current settings to USB host. */
+                    USBD_Write(0, (void*) &usbpowercon_cdclinecoding, 7, NULL);
+                    retVal = USB_STATUS_OK;
+                }
                 break;
 
             case USB_CDC_SETLINECODING:
                 /********************/
-                if ((setup->wValue == 0) && (setup->wIndex == 0) && /* Interface no.            */
+                if ((setup->wValue == 0) && (setup->wIndex == 0) && /* Interface no. */
                 (setup->wLength == 7) && /* Length of cdcLineCoding  */
                 (setup->Direction != USB_SETUP_DIR_IN))
                 {
@@ -283,12 +293,20 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                     USBD_Read(0, (void*) &cdcLineCoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
-                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no.            */
+                else if ((setup->wValue == 0) && (setup->wIndex == 2) && /* Interface no. */
                 (setup->wLength == 7) && /* Length of cdcLineCoding  */
                 (setup->Direction != USB_SETUP_DIR_IN))
                 {
                     /* Get new settings from USB host. */
                     USBD_Read(0, (void*) &usbuart_cdclinecoding, 7, usbuart_LineCodingReceived);
+                    retVal = USB_STATUS_OK;
+                }
+                else if ((setup->wValue == 0) && (setup->wIndex == 4) && /* Interface no. */
+                (setup->wLength == 7) && /* Length of cdcLineCoding  */
+                (setup->Direction != USB_SETUP_DIR_IN))
+                {
+                    /* Get new settings from USB host. */
+                    USBD_Read(0, (void*) &usbpowercon_cdclinecoding, 7, NULL);
                     retVal = USB_STATUS_OK;
                 }
                 break;
@@ -308,6 +326,32 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                 {
                     int uart_dtr = setup->wValue & 1;
                     uart_printf("USB UART DTR = %u\n", uart_dtr);
+
+                    if (uart_dtr)
+                    {
+                        usbuart_start();
+                    }
+                    else
+                    {
+                        usbuart_stop();
+                    }
+
+                    retVal = USB_STATUS_OK;
+                }
+                else if ((setup->wIndex == 4) && /* Interface no.  */
+                (setup->wLength == 0)) /* No data        */
+                {
+                    int dtr = setup->wValue & 1;
+                    uart_printf("USB POWERCON DTR = %u\n", dtr);
+
+                    if (dtr)
+                    {
+                        usbpowercon_start();
+                    }
+                    else
+                    {
+                        usbpowercon_stop();
+                    }
 
                     retVal = USB_STATUS_OK;
                 }
@@ -344,7 +388,7 @@ static void SerialPortInit(void)
     USART_InitAsync(uart, &init);
 
     /* Enable pins at USART2 location #1 */
-    uart->ROUTE = UART_ROUTE_RXPEN | UART_ROUTE_TXPEN
+    uart->ROUTE = USART_ROUTE_RXPEN | USART_ROUTE_TXPEN
             | USART_ROUTE_LOCATION_LOC1;
 
     /* Finally enable it */
@@ -368,7 +412,7 @@ static void SerialPortInit(void)
     USART_InitAsync(uart, &init);
 
     /* Enable pins at USART1 location #1 */
-    uart->ROUTE = UART_ROUTE_RXPEN | UART_ROUTE_TXPEN
+    uart->ROUTE = USART_ROUTE_RXPEN | USART_ROUTE_TXPEN
             | USART_ROUTE_LOCATION_LOC1;
 
     /* Finally enable it */

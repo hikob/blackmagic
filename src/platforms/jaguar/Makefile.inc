@@ -2,7 +2,7 @@ CROSS_COMPILE ?= arm-none-eabi-
 CC = $(CROSS_COMPILE)gcc
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
-DEVICE = EFM32LG990F256
+DEVICE = EFM32LG940F256
 
 # This is already set
 #CFLAGS += -Wall -Wextra -Wno-pointer-sign -Wno-char-subscripts\
@@ -42,6 +42,7 @@ VPATH += ../energymicro/Device/EnergyMicro/EFM32LG/Source/GCC/ \
 VPATH += platforms/efm32
 
 SRC += \
+    jaguar.c \
     system_efm32lg.c \
     em_assert.c \
     em_cmu.c \
@@ -49,6 +50,7 @@ SRC += \
     em_ebi.c \
     em_emu.c \
     em_gpio.c \
+    em_i2c.c \
     em_int.c \
     em_lcd.c \
     em_system.c \
@@ -62,7 +64,9 @@ SRC += \
     em_usbtimer.c \
     \
     dmactrl.c \
-    usbuart.c
+    usbuart.c \
+    usbpowercon.c
+    
 
 S_SRC +=  startup_efm32lg.S
 

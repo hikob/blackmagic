@@ -40,6 +40,8 @@ typedef uint64_t u64;
 
 #include "gdb_packet.h"
 
+#define PLATFORM_HAS_POWERCONTROL 1
+
 /* Important pin mappings for EnergyMicro implementation:
  * SWD :
      *  VDD             => 3.3V (ext header pin 18)
@@ -77,13 +79,6 @@ typedef uint64_t u64;
 #define LED_IDLE_RUN	9
 #define LED_CUSTOM_PORT	gpioPortE
 #define LED_CUSTOM_RUN	15
-
-#define TARGET_EN_PORT	gpioPortD
-#define TARGET_EN_PIN	4
-#define TARGET_5V_PORT	gpioPortD
-#define TARGET_5V_PIN	5
-#define TARGET_PG_PORT	gpioPortD
-#define TARGET_PG_PIN	3
 
 #define ACTIVITY_LED    LED_IDLE_PORT,LED_IDLE_RUN
 #define CUSTOM_LED      LED_CUSTOM_PORT,LED_CUSTOM_RUN

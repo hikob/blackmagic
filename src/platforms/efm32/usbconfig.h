@@ -41,12 +41,8 @@ extern "C" {
 
 #define USB_DEVICE        /* Compile stack for device mode. */
 
-/****************************************************************************
-**                                                                         **
-** Specify number of endpoints used (in addition to EP0).                  **
-**                                                                         **
-*****************************************************************************/
-#define NUM_EP_USED 6
+#define NUM_TTY 3
+#define NUM_EP_USED (3*NUM_TTY)
 
 /* Define USB endpoint addresses */
 #define EP_DATA_OUT       0x01  /* Endpoint for USB data reception.       */
@@ -56,6 +52,10 @@ extern "C" {
 #define EP_UART_OUT       0x03  /* Endpoint for USB data reception.       */
 #define EP_UART_IN        0x83  /* Endpoint for USB data transmission.    */
 #define EP_UART_NOTIFY    0x84  /* The notification endpoint (not used).  */
+
+#define EP_POWER_OUT       0x05  /* Endpoint for USB data reception.       */
+#define EP_POWER_IN        0x85  /* Endpoint for USB data transmission.    */
+#define EP_POWER_NOTIFY    0x86  /* The notification endpoint (not used).  */
 
 #define BULK_EP_SIZE     USB_MAX_EP_SIZE  /* This is the max. ep size.    */
 #define USB_RX_BUF_SIZ   BULK_EP_SIZE /* Packet size when receiving on USB*/

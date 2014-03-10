@@ -361,20 +361,20 @@ int usbuart_LineCodingReceived(USB_Status_TypeDef status, uint32_t xferred,
     {
         /* Check bDataBits, valid values are: 5, 6, 7, 8 or 16 bits */
         if (usbuart_cdclinecoding.bDataBits == 5)
-            frame |= UART_FRAME_DATABITS_FIVE;
+            frame |= USART_FRAME_DATABITS_FIVE;
 
         else if (usbuart_cdclinecoding.bDataBits == 6)
-            frame |= UART_FRAME_DATABITS_SIX;
+            frame |= USART_FRAME_DATABITS_SIX;
 
         else if (usbuart_cdclinecoding.bDataBits == 7)
-            frame |= UART_FRAME_DATABITS_SEVEN;
+            frame |= USART_FRAME_DATABITS_SEVEN;
 
         else if (usbuart_cdclinecoding.bDataBits == 8){
-            frame |= UART_FRAME_DATABITS_EIGHT;
+            frame |= USART_FRAME_DATABITS_EIGHT;
         }
 
         else if (usbuart_cdclinecoding.bDataBits == 16)
-            frame |= UART_FRAME_DATABITS_SIXTEEN;
+            frame |= USART_FRAME_DATABITS_SIXTEEN;
 
         else
             return USB_STATUS_REQ_ERR;
@@ -382,14 +382,14 @@ int usbuart_LineCodingReceived(USB_Status_TypeDef status, uint32_t xferred,
         /* Check bParityType, valid values are: 0=None 1=Odd 2=Even 3=Mark 4=Space  */
         if (usbuart_cdclinecoding.bParityType == 0)
         {
-            frame |= UART_FRAME_PARITY_NONE;
+            frame |= USART_FRAME_PARITY_NONE;
         }
 
         else if (usbuart_cdclinecoding.bParityType == 1)
-            frame |= UART_FRAME_PARITY_ODD;
+            frame |= USART_FRAME_PARITY_ODD;
 
         else if (usbuart_cdclinecoding.bParityType == 2)
-            frame |= UART_FRAME_PARITY_EVEN;
+            frame |= USART_FRAME_PARITY_EVEN;
 
         else if (usbuart_cdclinecoding.bParityType == 3)
             return USB_STATUS_REQ_ERR;
@@ -403,14 +403,14 @@ int usbuart_LineCodingReceived(USB_Status_TypeDef status, uint32_t xferred,
         /* Check bCharFormat, valid values are: 0=1 1=1.5 2=2 stop bits */
         if (usbuart_cdclinecoding.bCharFormat == 0)
         {
-            frame |= UART_FRAME_STOPBITS_ONE;
+            frame |= USART_FRAME_STOPBITS_ONE;
         }
 
         else if (usbuart_cdclinecoding.bCharFormat == 1)
-            frame |= UART_FRAME_STOPBITS_ONEANDAHALF;
+            frame |= USART_FRAME_STOPBITS_ONEANDAHALF;
 
         else if (usbuart_cdclinecoding.bCharFormat == 2)
-            frame |= UART_FRAME_STOPBITS_TWO;
+            frame |= USART_FRAME_STOPBITS_TWO;
 
         else
             return USB_STATUS_REQ_ERR;
