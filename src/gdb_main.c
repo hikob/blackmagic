@@ -47,9 +47,6 @@
 #include "command.h"
 #include "crc32.h"
 
-#undef DEBUG
-#define DEBUG(...) uart_printf(__VA_ARGS__)
-
 #define BUF_SIZE	1024
 
 #define ERROR_IF_NO_TARGET()	\

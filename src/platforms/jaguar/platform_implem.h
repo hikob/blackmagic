@@ -18,11 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* This file implements the platform specific functions for the STM32
- * implementation.
  */
-#ifndef __PLATFORM_H
-#define __PLATFORM_H
+#ifndef __PLATFORM_IMPLEM_H
+#define __PLATFORM_IMPLEM_H
 
 #include <stdint.h>
 #include "em_gpio.h"

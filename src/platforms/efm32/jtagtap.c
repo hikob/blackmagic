@@ -29,7 +29,7 @@
 
 int jtagtap_init(void)
 {
-	TMS_SET_MODE();
+    jtag_tms_set_output();
 
 	/* Go to JTAG mode for SWJ-DP */
 	for(int i = 0; i <= 50; i++) jtagtap_next(1, 0); /* Reset SW-DP */
@@ -67,11 +67,12 @@ inline uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDO)
 {
 	uint16_t ret;
 
-	gpio_set_val(TMS_PORT, TMS_PIN, dTMS);
-	gpio_set_val(TDI_PORT, TDI_PIN, dTDO);
-	gpio_set(TCK_PORT, TCK_PIN);
-	ret = gpio_get(TDO_PORT, TDO_PIN);
-	gpio_clear(TCK_PORT, TCK_PIN);
+	jtag_tms_set(dTMS);
+	jtag_tdi_set(dTDO);
+
+	jtag_tck_set(1);
+	ret = jtag_tdo_get();
+    jtag_tck_set(0);
 
 	DEBUG("jtagtap_next(TMS = %d, TDO = %d) = %d\n", dTMS, dTDO, ret);
 

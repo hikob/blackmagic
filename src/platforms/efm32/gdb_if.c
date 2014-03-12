@@ -44,7 +44,6 @@ static int UsbDataTransmitted(USB_Status_TypeDef status, uint32_t xferred,
 
 int gdb_if_init(void)
 {
-    uart_printf("GDBIF Init!\n");
     /* Start receiving data from USB host. */
     USBD_Read(EP_DATA_OUT, (void*) double_buffer_out, USB_RX_BUF_SIZ,
             UsbDataReceived);
