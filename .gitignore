@@ -15,3 +15,5 @@ energymicro/
 EM_CMSIS_3.20.0.zip
 EFM32LG_STK3600_BSP_3.20.0.zip
 EM_BSP_COMMON_3.20.0.zip
+.cproject
+.project
