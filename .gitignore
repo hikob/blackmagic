@@ -1,8 +1,8 @@
 blackmagic
-blackmagic.bin
+*.bin
+*.hex
 blackmagic_dfu
-blackmagic_dfu.bin
-blackmagic_dfu.hex
+dfu_upgrade
 mapfile
 *.o
 *.d
@@ -11,6 +11,8 @@ mapfile
 *.pyc
 tags
 .gdbinit
+*.s#*
+*.b#*
 energymicro/
 EM_CMSIS_3.20.0.zip
 EFM32LG_STK3600_BSP_3.20.0.zip
