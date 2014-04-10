@@ -42,17 +42,7 @@ typedef uint64_t u64;
 
 #define PLATFORM_HAS_POWERCONTROL 1
 
-/* Important pin mappings for EnergyMicro implementation:
- * SWD :
-     *  VDD             => 3.3V (ext header pin 18)
-     *  GND             => GND  (ext header pin 19)
-     *  TMS  / SWDIO    => PD3  (ext header pin 10)
-     *  TCK  / SWCLK    => PD4  (ext header pin 12)
-     *  TRST/NRST       => PD5  (ext header pin 14)
-
- */
-
-#define BOARD_IDENT "Black Magic on HiKoB Mystic Jaguar"
+#define BOARD_IDENT "HiKoB Mystic Jaguar"
 
 /* Hardware definitions... */
 #define TDI_PORT	gpioPortB

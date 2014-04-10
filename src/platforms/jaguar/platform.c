@@ -168,6 +168,7 @@ int platform_init()
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
     jaguar_init();
 
