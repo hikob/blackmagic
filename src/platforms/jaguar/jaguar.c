@@ -103,7 +103,6 @@ void jaguar_init()
     // Enable Target Power
     GPIO_PinModeSet(TARGET_EN_PORT, TARGET_EN_PIN, gpioModePushPull, 1);
     GPIO_PinModeSet(TARGET_5V_PORT, TARGET_5V_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(TARGET_PG_PORT, TARGET_PG_PIN, gpioModeInput, 1);
 
     GPIO_PinModeSet(ALERT_PORT, ALERT_PIN, gpioModeInput, 1);
 

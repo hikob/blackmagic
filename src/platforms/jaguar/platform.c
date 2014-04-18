@@ -122,6 +122,7 @@ void PLATFORM_SET_FATAL_ERROR_RECOVERY()
 }
 void PLATFORM_FATAL_ERROR(int error)
 {
+    SET_ERROR_STATE(1);
     if (running_status)
         gdb_putpacketz("X1D");
     else
@@ -129,6 +130,9 @@ void PLATFORM_FATAL_ERROR(int error)
     running_status = 0;
     target_list_free();
     morse("TARGET LOST.", 1);
+
+    uart_write("xxxxxxxxxxxxxxxxxxx TARGET LOST xxxxxxxxxxxxxxxxxxx\n");
+
     longjmp(fatal_error_jmpbuf, (error));
 }
 
@@ -258,6 +262,31 @@ void jtag_swclk_set(int val)
     }
 }
 
+void jtag_trst_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(TRST_PORT, TRST_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(TRST_PORT, TRST_PIN);
+    }
+}
+void jtag_srst_set(int val)
+{
+    if (val)
+    {
+        uart_write("\tSRST set!\n");
+        GPIO_PinOutSet(SRST_PORT, SRST_PIN);
+    }
+    else
+    {
+        uart_write("\tSRST clear!\n");
+        GPIO_PinOutClear(SRST_PORT, SRST_PIN);
+    }
+}
+
 static int jtag_pins_are_high_z = 1;
 void jtag_pins_high_z()
 {
@@ -265,6 +294,13 @@ void jtag_pins_high_z()
     {
         return;
     }
+
+    // Reset!!!
+    jtag_srst_set(0);
+    platform_delay(1);
+    jtag_srst_set(1);
+
+    uart_write("Target Reset!\n");
 
     // GPIO prepare for JTAG INPUT
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
@@ -276,6 +312,8 @@ void jtag_pins_high_z()
     GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
     GPIO_PinModeSet(gpioPortD, 0, gpioModeInput, 0);
+
+    uart_write("HIGH Z\n");
 
     jtag_pins_are_high_z = 1;
 }
@@ -289,7 +327,7 @@ void jtag_pins_active()
 
     // GPIO prepare for JTAG
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeWiredAnd, 1);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
@@ -298,6 +336,7 @@ void jtag_pins_active()
 
     GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
 
+    uart_write("ACTIVE\n");
     jtag_pins_are_high_z = 0;
 }
 /*
@@ -352,7 +391,8 @@ int platform_init()
     jaguar_init();
 
     // Initialize USB UART
-    usbuart_init(USART1, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
+    usbuart_init(USART1, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL,
+            DMAREQ_USART1_RXDATAV);
 
     // Initialize USB Power measure
     usbpowercon_init();
@@ -574,7 +614,6 @@ static void SerialPortInit(void)
 
     /* Finally enable it */
     USART_Enable(uart, usartEnable);
-
 
     // Init pins and clock for JTAG uart
     GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);

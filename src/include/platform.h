@@ -65,6 +65,11 @@ int jtag_swdio_get();
 /** Set the value of SWDCLK pin*/
 void jtag_swclk_set(int val);
 
+/** Set the TRST pin value */
+void jtag_trst_set(int val);
+/** Set the SRST pin value */
+void jtag_srst_set(int val);
+
 /** Make JTAG pins High Z */
 void jtag_pings_high_z();
 /** Make JTAG pins active */
@@ -81,7 +86,6 @@ void SET_ERROR_STATE(int state);
 
 void PLATFORM_FATAL_ERROR(int error);
 void PLATFORM_SET_FATAL_ERROR_RECOVERY();
-
 
 void led_uart_on();
 void led_uart_off();
