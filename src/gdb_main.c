@@ -80,6 +80,17 @@ gdb_main(void)
 	DEBUG("Entring GDB protocol main loop\n");
 	/* GDB protocol main loop */
 	while(1) {
+
+	    if (!cdcacm_get_dtr())
+	    {
+	        // Disable the pins
+	        jtag_pins_high_z();
+	    }
+	    else
+	    {
+	        jtag_pins_active();
+	    }
+
 		SET_IDLE_STATE(1);
 		size = gdb_getpacket(pbuf, BUF_SIZE);
 		SET_IDLE_STATE(0);

@@ -65,6 +65,11 @@ int jtag_swdio_get();
 /** Set the value of SWDCLK pin*/
 void jtag_swclk_set(int val);
 
+/** Make JTAG pins High Z */
+void jtag_pings_high_z();
+/** Make JTAG pins active */
+void jtag_pins_active();
+
 extern jmp_buf fatal_error_jmpbuf;
 
 /** Set the running state of the target (1=running, 0=halted) */
