@@ -31,7 +31,7 @@ int usbuart_LineCodingReceived(USB_Status_TypeDef status,
                               uint32_t remaining);
 
 /** Initialize */
-void usbuart_init(USART_TypeDef *uart, uint32_t dmareq_tx, uint32_t dmareq_rx);
+void usbuart_init(USART_TypeDef *uart, uint32_t route, uint32_t dmareq_tx, uint32_t dmareq_rx);
 
 /** Start USB/UART forward */
 void usbuart_start();
