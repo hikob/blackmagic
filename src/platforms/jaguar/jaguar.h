@@ -10,6 +10,8 @@
 
 #include "platform.h"
 
+#define PLATFORM_HAS_POWERCONTROL 1
+
 /* Important pin mappings for EnergyMicro implementation:
  * SWD :
      *  VDD             => 3.3V
@@ -44,6 +46,18 @@
 #define TRST_PIN    13
 #define SRST_PORT   gpioPortB
 #define SRST_PIN    5
+
+// Green LED (led1)
+#define LED_IDLE_RUN_PORT   gpioPortE
+#define LED_IDLE_RUN_PIN    9
+
+// Red LED (led0)
+#define LED_ERROR_PORT  gpioPortE
+#define LED_ERROR_PIN   15
+
+// Blue LED (led2)
+#define LED_UART_PORT   gpioPortA
+#define LED_UART_PIN    14
 
 void jaguar_init();
 

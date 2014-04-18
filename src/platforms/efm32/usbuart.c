@@ -96,6 +96,8 @@ void usbuart_start()
     DMA_ActivateBasic(1, true, false, (void *) uartRxBuffer[uartRxIndex],
             (void *) &(usbuart_uart->RXDATA), USB_TX_BUF_SIZ - 1);
     USBTIMER_Start(0, RX_TIMEOUT, UartRxTimeout);
+
+    led_uart_on();
 }
 
 void usbuart_stop()
@@ -103,6 +105,8 @@ void usbuart_stop()
     /* Stop CDC functionality */
     USBTIMER_Stop(0);
     DMA->CHENC = 3; /* Stop DMA channels 0 and 1. */
+
+    led_uart_off();
 }
 
 /**************************************************************************//**
@@ -266,6 +270,7 @@ static void DmaRxComplete(unsigned int channel, bool primary, void *user)
         USBD_Write(EP_UART_IN, (void*) uartRxBuffer[uartRxIndex ^ 1],
                 uartRxCount, UsbDataTransmitted);
         LastUsbTxCnt = uartRxCount;
+        led_uart_toggle();
 
         /* Start a new UART receive DMA. */
         dmaRxCompleted = true;

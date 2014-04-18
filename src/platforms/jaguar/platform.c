@@ -42,9 +42,11 @@
 #include "em_usart.h"
 
 #include "platform.h"
+
 #include "gdb_if.h"
 #include "gdb_main.h"
 #include "jtag_scan.h"
+#include "target.h"
 
 #include "efm_usbuart.h"
 #include "usbpowercon.h"
@@ -52,7 +54,6 @@
 #include "jaguar.h"
 
 /*** Typedef's and defines. ***/
-
 
 static int usb_configured = 0;
 static int usb_cdc_dtr = 0;
@@ -82,6 +83,69 @@ volatile uint32_t timeout_counter;
 
 jmp_buf fatal_error_jmpbuf;
 
+#undef SET_RUN_STATE
+#undef SET_IDLE_STATE
+#undef SET_ERROR_STATE
+#undef PLATFORM_SET_FATAL_ERROR_RECOVERY
+#undef PLATFORM_FATAL_ERROR
+
+void SET_RUN_STATE(int state)
+{
+    running_status = state;
+}
+void SET_IDLE_STATE(int state)
+{
+    if (state)
+    {
+        GPIO_PinOutClear(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN);
+    }
+    else
+    {
+        GPIO_PinOutSet(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN);
+    }
+}
+void SET_ERROR_STATE(int state)
+{
+    if (state)
+    {
+        GPIO_PinOutClear(LED_ERROR_PORT, LED_ERROR_PIN);
+    }
+    else
+    {
+        GPIO_PinOutSet(LED_ERROR_PORT, LED_ERROR_PIN);
+    }
+}
+
+void PLATFORM_SET_FATAL_ERROR_RECOVERY()
+{
+    setjmp(fatal_error_jmpbuf);
+}
+void PLATFORM_FATAL_ERROR(int error)
+{
+    if (running_status)
+        gdb_putpacketz("X1D");
+    else
+        gdb_putpacketz("EFF");
+    running_status = 0;
+    target_list_free();
+    morse("TARGET LOST.", 1);
+    longjmp(fatal_error_jmpbuf, (error));
+}
+
+
+void led_uart_on()
+{
+    GPIO_PinOutClear(LED_UART_PORT, LED_UART_PIN);
+}
+void led_uart_off()
+{
+    GPIO_PinOutSet(LED_UART_PORT, LED_UART_PIN);
+}
+void led_uart_toggle()
+{
+    GPIO_PinOutToggle(LED_UART_PORT, LED_UART_PIN);
+}
+
 const char *morse_msg;
 void morse(const char *msg, char repeat)
 {
@@ -92,7 +156,8 @@ void platform_delay(uint32_t delay)
 {
     timeout_counter = delay;
     while (timeout_counter)
-        ;
+    {
+    }
 }
 const char *platform_target_voltage(void)
 {
@@ -100,17 +165,97 @@ const char *platform_target_voltage(void)
 }
 void SysTick_Handler(void)
 {
-    GPIO_PinOutToggle(gpioPortE, 3);
-
     if (running_status)
     {
-        GPIO_PinOutToggle(LED_PORT, LED_IDLE_RUN);
+        GPIO_PinOutToggle(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN);
         DEBUG(".");
     }
 
     if (timeout_counter)
     {
         timeout_counter--;
+    }
+}
+
+void jtag_tms_set_output()
+{
+    GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
+}
+
+void jtag_tms_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(TMS_PORT, TMS_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(TMS_PORT, TMS_PIN);
+    }
+}
+void jtag_tdi_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(TDI_PORT, TDI_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(TDI_PORT, TDI_PIN);
+    }
+}
+void jtag_tck_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(TCK_PORT, TCK_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(TCK_PORT, TCK_PIN);
+    }
+}
+
+int jtag_tdo_get()
+{
+    return GPIO_PinInGet(TDO_PORT, TDO_PIN);
+
+}
+
+void jtag_swdio_set_input()
+{
+    GPIO_PinModeSet(SWDIO_PORT, SWDIO_PIN, gpioModeInput, 0);
+}
+void jtag_swdio_set_output()
+{
+    GPIO_PinModeSet(SWDIO_PORT, SWDIO_PIN, gpioModePushPull, 0);
+}
+
+void jtag_swdio_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(SWDIO_PORT, SWDIO_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(SWDIO_PORT, SWDIO_PIN);
+    }
+}
+int jtag_swdio_get()
+{
+    return GPIO_PinInGet(SWDIO_PORT, SWDIO_PIN);
+}
+
+void jtag_swclk_set(int val)
+{
+    if (val)
+    {
+        GPIO_PinOutSet(SWCLK_PORT, SWCLK_PIN);
+    }
+    else
+    {
+        GPIO_PinOutClear(SWCLK_PORT, SWCLK_PIN);
     }
 }
 
@@ -149,8 +294,6 @@ int platform_init()
 
     CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
 
-    GPIO_PinModeSet(ACTIVITY_LED, gpioModePushPull, 0);
-    GPIO_PinOutClear(ACTIVITY_LED);
     SerialPortInit();
 
     uart_printf("CDC Test Started %x\n", 0x1234);
@@ -158,10 +301,12 @@ int platform_init()
     /* Setup SysTick Timer for 100 msec interrupts  */
     SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 10);
 
-    // Custom LED
-    GPIO_PinModeSet(CUSTOM_LED, gpioModePushPull, 0);
+    // LEDS GPIO init
+    GPIO_PinModeSet(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(LED_ERROR_PORT, LED_ERROR_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(LED_UART_PORT, LED_UART_PIN, gpioModePushPull, 1);
 
-    // GPIO prepare
+    // GPIO prepare for JTAG
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
     GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
 
@@ -172,10 +317,10 @@ int platform_init()
 
     jaguar_init();
 
-    // Initialize USB UART
+// Initialize USB UART
     usbuart_init(USART1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
 
-    // Initialize USB Power measure
+// Initialize USB Power measure
     usbpowercon_init();
 
     USBD_Init(&initstruct);
@@ -299,7 +444,8 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
                 (setup->Direction != USB_SETUP_DIR_IN))
                 {
                     /* Get new settings from USB host. */
-                    USBD_Read(0, (void*) &usbuart_cdclinecoding, 7, usbuart_LineCodingReceived);
+                    USBD_Read(0, (void*) &usbuart_cdclinecoding, 7,
+                            usbuart_LineCodingReceived);
                     retVal = USB_STATUS_OK;
                 }
                 else if ((setup->wValue == 0) && (setup->wIndex == 4) && /* Interface no. */
@@ -368,7 +514,7 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
  *****************************************************************************/
 static void SerialPortInit(void)
 {
-    // Init Debug UART
+// Init Debug UART
 
     USART_TypeDef *uart = USART2;
     USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
@@ -395,7 +541,7 @@ static void SerialPortInit(void)
     /* Finally enable it */
     USART_Enable(uart, usartEnable);
 
-    // Init JTAG UART
+// Init JTAG UART
 
     uart = USART1;
 

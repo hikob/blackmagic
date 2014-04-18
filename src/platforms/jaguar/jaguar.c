@@ -17,8 +17,6 @@
 
 #include "jaguar.h"
 
-#include "platform.h"
-
 #undef DEBUG
 #define DEBUG(...) uart_printf(__VA_ARGS__)
 
