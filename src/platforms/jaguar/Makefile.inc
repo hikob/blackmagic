@@ -17,7 +17,7 @@ CFLAGS += -DENERGYMICRO -D$(DEVICE) \
     -mfix-cortex-m3-ldrd -ffunction-sections \
     -fdata-sections -fomit-frame-pointer \
     -fwide-exec-charset=UTF-16LE -fshort-wchar \
-    -DDEBUG_EFM_USER
+    -DDEBUG_EFM_USER -DPLATFORM_HAS_POWERCONTROL
  
 ASMFLAGS += -x assembler-with-cpp -D$(DEVICE) -Wall -Wextra -mcpu=cortex-m3 -mthumb
 

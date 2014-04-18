@@ -132,7 +132,6 @@ void PLATFORM_FATAL_ERROR(int error)
     longjmp(fatal_error_jmpbuf, (error));
 }
 
-
 void led_uart_on()
 {
     GPIO_PinOutClear(LED_UART_PORT, LED_UART_PIN);
@@ -259,6 +258,48 @@ void jtag_swclk_set(int val)
     }
 }
 
+static int jtag_pins_are_high_z = 1;
+void jtag_pins_high_z()
+{
+    if (jtag_pins_are_high_z)
+    {
+        return;
+    }
+
+    // GPIO prepare for JTAG INPUT
+    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeInput, 0);
+
+    GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModeInput, 0);
+    GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModeInput, 0);
+    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
+    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
+
+    GPIO_PinModeSet(gpioPortD, 0, gpioModeInput, 0);
+
+    jtag_pins_are_high_z = 1;
+}
+
+void jtag_pins_active()
+{
+    if (!jtag_pins_are_high_z)
+    {
+        return;
+    }
+
+    // GPIO prepare for JTAG
+    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
+
+    GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
+
+    GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
+
+    jtag_pins_are_high_z = 0;
+}
 /*
  * The LineCoding variable must be 4-byte aligned as it is used as USB
  * transmit and receive buffer
@@ -302,25 +343,18 @@ int platform_init()
     SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 10);
 
     // LEDS GPIO init
-    GPIO_PinModeSet(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(LED_ERROR_PORT, LED_ERROR_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(LED_UART_PORT, LED_UART_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(LED_IDLE_RUN_PORT, LED_IDLE_RUN_PIN, gpioModeWiredAnd, 1);
+    GPIO_PinModeSet(LED_ERROR_PORT, LED_ERROR_PIN, gpioModeWiredAnd, 1);
+    GPIO_PinModeSet(LED_UART_PORT, LED_UART_PIN, gpioModeWiredAnd, 1);
 
     // GPIO prepare for JTAG
-    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
-
-    GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
-
+    jtag_pins_active();
     jaguar_init();
 
-// Initialize USB UART
-    usbuart_init(USART1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
+    // Initialize USB UART
+    usbuart_init(USART1, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL, DMAREQ_USART1_RXDATAV);
 
-// Initialize USB Power measure
+    // Initialize USB Power measure
     usbpowercon_init();
 
     USBD_Init(&initstruct);
@@ -514,7 +548,7 @@ static int SetupCmd(const USB_Setup_TypeDef *setup)
  *****************************************************************************/
 static void SerialPortInit(void)
 {
-// Init Debug UART
+    // Init Debug UART
 
     USART_TypeDef *uart = USART2;
     USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
@@ -541,27 +575,9 @@ static void SerialPortInit(void)
     /* Finally enable it */
     USART_Enable(uart, usartEnable);
 
-// Init JTAG UART
 
-    uart = USART1;
-
-    /* Configure GPIO pins */
-    /* To avoid false start, configure output as high */
+    // Init pins and clock for JTAG uart
     GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
     GPIO_PinModeSet(gpioPortD, 1, gpioModeInput, 0);
-
-    /* Enable peripheral clocks */
     CMU_ClockEnable(cmuClock_USART1, true);
-
-    /* Configure UART for basic async operation */
-    init.enable = usartDisable;
-    init.baudrate = 500000;
-    USART_InitAsync(uart, &init);
-
-    /* Enable pins at USART1 location #1 */
-    uart->ROUTE = USART_ROUTE_RXPEN | USART_ROUTE_TXPEN
-            | USART_ROUTE_LOCATION_LOC1;
-
-    /* Finally enable it */
-    USART_Enable(uart, usartEnable);
 }
