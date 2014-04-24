@@ -40,6 +40,7 @@
 #include "em_usb.h"
 #include "em_chip.h"
 #include "em_usart.h"
+#include "em_rtc.h"
 
 #include "platform.h"
 
@@ -311,11 +312,18 @@ void jtag_pins_high_z()
     GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
     GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
+    // UART TX as input
     GPIO_PinModeSet(gpioPortD, 0, gpioModeInput, 0);
 
     uart_write("HIGH Z\n");
 
     jtag_pins_are_high_z = 1;
+
+    // Enable interrupts on SWD & SWCLK
+    GPIO_IntClear(1 << SWCLK_PIN);
+    GPIO_IntClear(1 << SWDIO_PIN);
+    GPIO_IntConfig(SWCLK_PORT, SWCLK_PIN, true, true, true);
+    GPIO_IntConfig(SWDIO_PORT, SWDIO_PIN, true, true, true);
 }
 
 void jtag_pins_active()
@@ -324,6 +332,9 @@ void jtag_pins_active()
     {
         return;
     }
+    // Disable interrupts
+    GPIO_IntConfig(SWCLK_PORT, SWCLK_PIN, true, true, false);
+    GPIO_IntConfig(SWDIO_PORT, SWDIO_PIN, true, true, false);
 
     // GPIO prepare for JTAG
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
@@ -338,6 +349,47 @@ void jtag_pins_active()
 
     uart_write("ACTIVE\n");
     jtag_pins_are_high_z = 0;
+}
+
+static inline void send_pin_state(uint32_t rtc_timestamp)
+{
+    uint32_t pin_state = 0;
+    pin_state += GPIO_PinInGet(SWCLK_PORT, SWCLK_PIN) ? 1: 0;
+    pin_state += GPIO_PinInGet(SWDIO_PORT, SWDIO_PIN) ? 2: 0;
+
+    usbpowercon_pinstatechange(rtc_timestamp, pin_state);
+}
+
+static inline void gpio_irq_handler()
+{
+    uint32_t rtc = RTC_CounterGet();
+    if (GPIO_IntGetEnabled() & (1 << 6))
+    {
+        /* clear flag for PA6 interrupt */
+        GPIO_IntClear(1 << 6);
+        jaguar_power_alert(rtc);
+    }
+
+    if (GPIO_IntGetEnabled() & (1 << SWDIO_PIN))
+    {
+        GPIO_IntClear(1 << SWDIO_PIN);
+        send_pin_state(rtc);
+    }
+    if (GPIO_IntGetEnabled() & (1 << SWCLK_PIN))
+    {
+        GPIO_IntClear(1 << TCK_PIN);
+        send_pin_state(rtc);
+    }
+}
+
+void GPIO_EVEN_IRQHandler()
+{
+    gpio_irq_handler();
+}
+
+void GPIO_ODD_IRQHandler()
+{
+    gpio_irq_handler();
 }
 /*
  * The LineCoding variable must be 4-byte aligned as it is used as USB
@@ -373,10 +425,21 @@ int platform_init()
     CHIP_Init();
 
     CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
+    CMU_ClockSelectSet(cmuClock_LFA, cmuSelect_CORELEDIV2);
+
+    // Start RTC for power measure timing
+    CMU_ClockEnable(cmuClock_RTC, true);
+    RTC_Init_TypeDef rtc_init = RTC_INIT_DEFAULT;
+    rtc_init.comp0Top = false;
+    RTC_Init(&rtc_init);
 
     SerialPortInit();
 
-    uart_printf("CDC Test Started %x\n", 0x1234);
+    uart_printf("CDC Test Started %x, rtc freq %u\n", 0x1234,
+            CMU_ClockFreqGet(cmuClock_RTC));
+
+    NVIC_EnableIRQ(GPIO_EVEN_IRQn);
+    NVIC_EnableIRQ(GPIO_ODD_IRQn);
 
     /* Setup SysTick Timer for 100 msec interrupts  */
     SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 10);

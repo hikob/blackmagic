@@ -53,6 +53,7 @@ SRC += \
     em_i2c.c \
     em_int.c \
     em_lcd.c \
+    em_rtc.c \
     em_system.c \
     em_timer.c \
     em_usart.c \

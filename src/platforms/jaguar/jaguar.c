@@ -14,6 +14,7 @@
 #include "em_usart.h"
 #include "em_i2c.h"
 #include "em_cmu.h"
+#include "em_rtc.h"
 
 #include "jaguar.h"
 
@@ -82,8 +83,7 @@ enum
 
 static struct
 {
-    void (*handler)(float voltage, float shunt, float current);
-
+    jaguar_power_handler_t handler;
     float current_lsb;
 
     int state;
@@ -94,6 +94,7 @@ static struct
     uint8_t data[2];
 
     float current, voltage, shunt;
+    uint32_t timestamp;
 } power;
 
 void jaguar_init()
@@ -152,9 +153,6 @@ void jaguar_init()
     // Reset State
     power.state = 0;
 
-    // Configure EXTI interrupt
-    NVIC_EnableIRQ(GPIO_EVEN_IRQn);
-
     /* Configure PB9 interrupt on falling edge */
     GPIO_IntConfig(ALERT_PORT, ALERT_PIN, false, true, true);
 }
@@ -196,17 +194,14 @@ int jaguar_target_5V_status()
     return !!GPIO_PinOutGet(TARGET_5V_PORT, TARGET_5V_PIN);
 }
 
-void jaguar_power_sensing(
-        void (*power_handler)(float voltage, float shunt, float current))
+void jaguar_power_sensing(jaguar_power_handler_t power_handler)
 {
     DEBUG("Starting Power Sensing %p\n", power_handler);
     power.handler = power_handler;
 }
-
-void GPIO_EVEN_IRQHandler()
+void jaguar_power_alert(uint32_t rtc_timestamp)
 {
-    /* clear flag for PA6 interrupt */
-    GPIO_IntClear(1 << 6);
+    power.timestamp = rtc_timestamp;
 
     // Process Alert
     state_machine(EVENT_ALERT);
@@ -386,7 +381,7 @@ static void state_machine(int event)
 
                     if (power.handler)
                     {
-                        power.handler(power.voltage, power.shunt,
+                        power.handler(power.timestamp, power.voltage, power.shunt,
                                 power.current);
                     }
                     break;

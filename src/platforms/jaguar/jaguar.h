@@ -70,8 +70,13 @@ int jaguar_target_5V_status();
 /** Get current Power Sensing status, 1:active 0:inactive */
 int jaguar_power_sensing_status();
 
+typedef void (*jaguar_power_handler_t)(uint32_t rtc_timestamp, float voltage, float shunt, float current);
+
 /** Set Power Sensing with measure handler */
-void jaguar_power_sensing(
-        void (*power_handler)(float voltage, float shunt, float current));
+void jaguar_power_sensing(jaguar_power_handler_t handler);
+
+/** Function to call on alert interrupt */
+void jaguar_power_alert(uint32_t rtc_timestamp);
 
 #endif /* JAGUAR_H_ */
+
