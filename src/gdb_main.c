@@ -88,6 +88,7 @@ gdb_main(void)
 	    }
 	    else
 	    {
+	        // Activate the pins
 	        jtag_pins_active();
 	    }
 

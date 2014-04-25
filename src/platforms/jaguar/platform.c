@@ -286,6 +286,14 @@ void jtag_srst_set(int val)
     }
 }
 
+static inline pin_reset()
+{
+    jtag_srst_set(0);
+    platform_delay(1);
+    jtag_srst_set(1);
+    platform_delay(3);
+}
+
 static int jtag_pins_are_high_z = 1;
 void jtag_pins_high_z()
 {
@@ -295,11 +303,7 @@ void jtag_pins_high_z()
     }
 
     // Reset!!!
-    jtag_srst_set(0);
-    platform_delay(1);
-    jtag_srst_set(1);
-
-    uart_write("Target Reset!\n");
+    pin_reset();
 
     // GPIO prepare for JTAG INPUT
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
@@ -330,6 +334,7 @@ void jtag_pins_active()
     {
         return;
     }
+
     // Disable interrupts
     GPIO_IntConfig(SWCLK_PORT, SWCLK_PIN, true, true, false);
     GPIO_IntConfig(SWDIO_PORT, SWDIO_PIN, true, true, false);
@@ -344,6 +349,9 @@ void jtag_pins_active()
     GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
     GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
+
+    // Reset!!!
+    pin_reset();
 
     uart_write("ACTIVE\n");
     jtag_pins_are_high_z = 0;
