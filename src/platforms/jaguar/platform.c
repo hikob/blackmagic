@@ -87,7 +87,6 @@ jmp_buf fatal_error_jmpbuf;
 #undef SET_RUN_STATE
 #undef SET_IDLE_STATE
 #undef SET_ERROR_STATE
-#undef PLATFORM_SET_FATAL_ERROR_RECOVERY
 #undef PLATFORM_FATAL_ERROR
 
 void SET_RUN_STATE(int state)
@@ -117,10 +116,6 @@ void SET_ERROR_STATE(int state)
     }
 }
 
-void PLATFORM_SET_FATAL_ERROR_RECOVERY()
-{
-    setjmp(fatal_error_jmpbuf);
-}
 void PLATFORM_FATAL_ERROR(int error)
 {
     SET_ERROR_STATE(1);
@@ -133,6 +128,9 @@ void PLATFORM_FATAL_ERROR(int error)
     morse("TARGET LOST.", 1);
 
     uart_write("xxxxxxxxxxxxxxxxxxx TARGET LOST xxxxxxxxxxxxxxxxxxx\n");
+
+    USBTIMER_DelayMs(500);
+    SET_ERROR_STATE(0);
 
     longjmp(fatal_error_jmpbuf, (error));
 }

@@ -59,6 +59,10 @@
 #define LED_UART_PORT   gpioPortA
 #define LED_UART_PIN    14
 
+extern jmp_buf fatal_error_jmpbuf;
+
+#define PLATFORM_SET_FATAL_ERROR_RECOVERY()	{setjmp(fatal_error_jmpbuf);}
+
 void jaguar_init();
 
 void jaguar_target_3V(int enable);

@@ -84,8 +84,8 @@ void SET_IDLE_STATE(int state);
 /** Set the error state of the target */
 void SET_ERROR_STATE(int state);
 
+#define PLATFORM_SET_FATAL_ERROR_RECOVERY()	{setjmp(fatal_error_jmpbuf);}
 void PLATFORM_FATAL_ERROR(int error);
-void PLATFORM_SET_FATAL_ERROR_RECOVERY();
 
 void led_uart_on();
 void led_uart_off();
