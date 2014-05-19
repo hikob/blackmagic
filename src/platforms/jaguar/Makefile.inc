@@ -12,12 +12,15 @@ DEVICE = EFM32LG940F256
 #    -DVERSION_SUFFIX=\"`../scripts/setlocalversion`\" -MD
 
 
+DEVICE_SN ?= 000
+
 CFLAGS += -DENERGYMICRO -D$(DEVICE) \
     -mcpu=cortex-m3 -mthumb \
     -mfix-cortex-m3-ldrd -ffunction-sections \
     -fdata-sections -fomit-frame-pointer \
     -fwide-exec-charset=UTF-16LE -fshort-wchar \
-    -DDEBUG_EFM_USER -DPLATFORM_HAS_POWERCONTROL
+    -DDEBUG_EFM_USER -DPLATFORM_HAS_POWERCONTROL \
+    -D_DEVICE_SN=L\"$(DEVICE_SN)\"
  
 ASMFLAGS += -x assembler-with-cpp -D$(DEVICE) -Wall -Wextra -mcpu=cortex-m3 -mthumb
 

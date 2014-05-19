@@ -344,7 +344,7 @@ static const uint8_t configDesc[] __attribute__ ((aligned(4)))=
 STATIC_CONST_STRING_DESC_LANGID( langID, 0x04, 0x09 );
 STATIC_CONST_STRING_DESC( iManufacturer, L"HiKoB" );
 STATIC_CONST_STRING_DESC( iProduct     , L"Black Magic Probe" );
-STATIC_CONST_STRING_DESC( iSerial     ,  L"0123456" );
+STATIC_CONST_STRING_DESC( iSerial     ,  _DEVICE_SN);
 
 static const void * const strings[] =
 {
