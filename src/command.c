@@ -51,190 +51,201 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv);
 static bool cmd_traceswo(void);
 #endif
 #ifdef PLATFORM_HAS_POWERCONTROL
-static bool cmd_powercontrol(target *t, int argc, const char **argv);
+static bool cmd_power_target_5V(target *t, int argc, const char **argv);
+static bool cmd_power_target(target *t, int argc, const char **argv);
 #endif
 
-const struct command_s cmd_list[] = {
-	{"version", (cmd_handler)cmd_version, "Display firmware version info"},
-	{"help", (cmd_handler)cmd_help, "Display help for monitor commands"},
-	{"jtag_scan", (cmd_handler)cmd_jtag_scan, "Scan JTAG chain for devices" },
-	{"swdp_scan", (cmd_handler)cmd_swdp_scan, "Scan SW-DP for devices" },
-	{"targets", (cmd_handler)cmd_targets, "Display list of available targets" },
-	{"morse", (cmd_handler)cmd_morse, "Display morse error message" },
-	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
+const struct command_s cmd_list[] =
+{
+{ "version", (cmd_handler) cmd_version, "Display firmware version info" },
+{ "help", (cmd_handler) cmd_help, "Display help for monitor commands" },
+{ "jtag_scan", (cmd_handler) cmd_jtag_scan, "Scan JTAG chain for devices" },
+{ "swdp_scan", (cmd_handler) cmd_swdp_scan, "Scan SW-DP for devices" },
+{ "targets", (cmd_handler) cmd_targets, "Display list of available targets" },
+{ "morse", (cmd_handler) cmd_morse, "Display morse error message" },
+{ "connect_srst", (cmd_handler) cmd_connect_srst,
+        "Configure connect under SRST: (enable|disable)" },
 #ifdef PLATFORM_HAS_TRACESWO
-	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
+        { "traceswo", (cmd_handler) cmd_traceswo, "Start trace capture" },
 #endif
 #ifdef PLATFORM_HAS_POWERCONTROL
-    {"power_control", (cmd_handler)cmd_powercontrol, "Control the target power: (3V|5V) (0|1)" },
+        { "target_5v", (cmd_handler) cmd_power_target_5V,
+                "Control the 5V for target: (0|1)" },
+        { "target_voltage", (cmd_handler) cmd_power_target,
+                "Control the voltage for target: (off|2.0|2.5|3.3|3.6|4.2)" },
 #endif
-	{NULL, NULL, NULL}
-};
-
+        { NULL, NULL, NULL } };
 
 int command_process(target *t, char *cmd)
 {
-	struct target_command_s *tc;
-	const struct command_s *c;
-	int argc = 0;
-	const char **argv;
+    struct target_command_s *tc;
+    const struct command_s *c;
+    int argc = 0;
+    const char **argv;
 
-	/* Initial estimate for argc */
-	for(char *s = cmd; *s; s++)
-		if((*s == ' ') || (*s == '\t')) argc++;
+    /* Initial estimate for argc */
+    for (char *s = cmd; *s; s++)
+        if ((*s == ' ') || (*s == '\t'))
+            argc++;
 
-	argv = alloca(sizeof(const char *) * argc);
+    argv = alloca(sizeof(const char *) * argc);
 
-	/* Tokenize cmd to find argv */
-	for(argc = 0, argv[argc] = strtok(cmd, " \t");
-		argv[argc]; argv[++argc] = strtok(NULL, " \t"));
+    /* Tokenize cmd to find argv */
+    for (argc = 0, argv[argc] = strtok(cmd, " \t"); argv[argc]; argv[++argc] =
+            strtok(NULL, " \t"))
+        ;
 
-	/* Look for match and call handler */
-	for(c = cmd_list; c->cmd; c++) {
-		/* Accept a partial match as GDB does.
-		 * So 'mon ver' will match 'monitor version'
-		 */
-		if(!strncmp(argv[0], c->cmd, strlen(argv[0])))
-			return !c->handler(t, argc, argv);
-	}
+    /* Look for match and call handler */
+    for (c = cmd_list; c->cmd; c++)
+    {
+        /* Accept a partial match as GDB does.
+         * So 'mon ver' will match 'monitor version'
+         */
+        if (!strncmp(argv[0], c->cmd, strlen(argv[0])))
+            return !c->handler(t, argc, argv);
+    }
 
-	if (!t)
-		return -1;
+    if (!t)
+        return -1;
 
-	for (tc = t->commands; tc; tc = tc->next)
-		for(c = tc->cmds; c->cmd; c++)
-			if(!strncmp(argv[0], c->cmd, strlen(argv[0])))
-				return !c->handler(t, argc, argv);
+    for (tc = t->commands; tc; tc = tc->next)
+        for (c = tc->cmds; c->cmd; c++)
+            if (!strncmp(argv[0], c->cmd, strlen(argv[0])))
+                return !c->handler(t, argc, argv);
 
-	return -1;
+    return -1;
 }
 
 bool cmd_version(void)
 {
-	gdb_out("Black Magic Probe (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")\n");
-	gdb_out("Copyright (C) 2011  Black Sphere Technologies Ltd.\n");
-	gdb_out("License GPLv3+: GNU GPL version 3 or later "
-		"<http://gnu.org/licenses/gpl.html>\n\n");
+    gdb_out("Black Magic Probe (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")\n");
+    gdb_out("Copyright (C) 2011  Black Sphere Technologies Ltd.\n");
+    gdb_out("License GPLv3+: GNU GPL version 3 or later "
+            "<http://gnu.org/licenses/gpl.html>\n\n");
 
-	return true;
+    return true;
 }
 
 bool cmd_help(target *t)
 {
-	struct target_command_s *tc;
-	const struct command_s *c;
+    struct target_command_s *tc;
+    const struct command_s *c;
 
-	gdb_out("General commands:\n");
-	for(c = cmd_list; c->cmd; c++)
-		gdb_outf("\t%s -- %s\n", c->cmd, c->help);
+    gdb_out("General commands:\n");
+    for (c = cmd_list; c->cmd; c++)
+        gdb_outf("\t%s -- %s\n", c->cmd, c->help);
 
-	if (!t)
-		return -1;
+    if (!t)
+        return -1;
 
-	for (tc = t->commands; tc; tc = tc->next) {
-		gdb_outf("%s specific commands:\n", tc->specific_name);
-		for(c = tc->cmds; c->cmd; c++)
-			gdb_outf("\t%s -- %s\n", c->cmd, c->help);
-	}
+    for (tc = t->commands; tc; tc = tc->next)
+    {
+        gdb_outf("%s specific commands:\n", tc->specific_name);
+        for (c = tc->cmds; c->cmd; c++)
+            gdb_outf("\t%s -- %s\n", c->cmd, c->help);
+    }
 
-	return true;
+    return true;
 }
 
 static bool cmd_jtag_scan(target *t, int argc, char **argv)
 {
-	(void)t;
-	uint8_t *irlens = NULL;
+    (void) t;
+    uint8_t *irlens = NULL;
 
-	gdb_outf("Target voltage: %s\n", platform_target_voltage());
+    gdb_outf("Target voltage: %s\n", platform_target_voltage());
 
-	if (argc > 1) {
-		/* Accept a list of IR lengths on command line */
-		irlens = alloca(argc);
-		for (int i = 1; i < argc; i++)
-			irlens[i-1] = atoi(argv[i]);
-		irlens[argc-1] = 0;
-	}
+    if (argc > 1)
+    {
+        /* Accept a list of IR lengths on command line */
+        irlens = alloca(argc);
+        for (int i = 1; i < argc; i++)
+            irlens[i - 1] = atoi(argv[i]);
+        irlens[argc - 1] = 0;
+    }
 
-	int devs = jtag_scan(irlens);
+    int devs = jtag_scan(irlens);
 
-	if(devs < 0) {
-		gdb_out("JTAG device scan failed!\n");
-		return false;
-	}
-	if(devs == 0) {
-		gdb_out("JTAG scan found no devices!\n");
-		return false;
-	}
-	gdb_outf("Device  IR Len  IDCODE      Description\n");
-	for(int i = 0; i < jtag_dev_count; i++)
-		gdb_outf("%d\t%d\t0x%08lX  %s\n", i,
-			 jtag_devs[i].ir_len, jtag_devs[i].idcode,
-			 jtag_devs[i].descr);
-	gdb_out("\n");
-	cmd_targets(NULL);
-	return true;
+    if (devs < 0)
+    {
+        gdb_out("JTAG device scan failed!\n");
+        return false;
+    }
+    if (devs == 0)
+    {
+        gdb_out("JTAG scan found no devices!\n");
+        return false;
+    }
+    gdb_outf("Device  IR Len  IDCODE      Description\n");
+    for (int i = 0; i < jtag_dev_count; i++)
+        gdb_outf("%d\t%d\t0x%08lX  %s\n", i, jtag_devs[i].ir_len,
+                jtag_devs[i].idcode, jtag_devs[i].descr);
+    gdb_out("\n");
+    cmd_targets(NULL);
+    return true;
 }
 
 bool cmd_swdp_scan(void)
 {
-	gdb_outf("Target voltage: %s\n", platform_target_voltage());
+    gdb_outf("Target voltage: %s\n", platform_target_voltage());
 
-	if(adiv5_swdp_scan() < 0) {
-		gdb_out("SW-DP scan failed!\n");
-		return false;
-	}
+    if (adiv5_swdp_scan() < 0)
+    {
+        gdb_out("SW-DP scan failed!\n");
+        return false;
+    }
 
-	//gdb_outf("SW-DP detected IDCODE: 0x%08X\n", adiv5_dp_list->idcode);
+    //gdb_outf("SW-DP detected IDCODE: 0x%08X\n", adiv5_dp_list->idcode);
 
-	cmd_targets(NULL);
-	return true;
+    cmd_targets(NULL);
+    return true;
 
 }
 
 bool cmd_targets(target *cur_target)
 {
-	struct target_s *t;
-	int i;
+    struct target_s *t;
+    int i;
 
-	if(!target_list) {
-		gdb_out("No usable targets found.\n");
-		return false;
-	}
+    if (!target_list)
+    {
+        gdb_out("No usable targets found.\n");
+        return false;
+    }
 
-	gdb_out("Available Targets:\n");
-	gdb_out("No. Att Driver\n");
-	for(t = target_list, i = 1; t; t = t->next, i++)
-		gdb_outf("%2d   %c  %s\n", i, t==cur_target?'*':' ',
-			 t->driver);
+    gdb_out("Available Targets:\n");
+    gdb_out("No. Att Driver\n");
+    for (t = target_list, i = 1; t; t = t->next, i++)
+        gdb_outf("%2d   %c  %s\n", i, t == cur_target ? '*' : ' ', t->driver);
 
-	return true;
+    return true;
 }
 
 bool cmd_morse(void)
 {
-	if(morse_msg)
-		gdb_outf("%s\n", morse_msg);
-	return true;
+    if (morse_msg)
+        gdb_outf("%s\n", morse_msg);
+    return true;
 }
 
 static bool cmd_connect_srst(target *t, int argc, const char **argv)
 {
-	(void)t;
-	if (argc == 1)
-		gdb_outf("Assert SRST during connect: %s\n",
-			 connect_assert_srst ? "enabled" : "disabled");
-	else
-		connect_assert_srst = !strcmp(argv[1], "enable");
-	return true;
+    (void) t;
+    if (argc == 1)
+        gdb_outf("Assert SRST during connect: %s\n",
+                connect_assert_srst ? "enabled" : "disabled");
+    else
+        connect_assert_srst = !strcmp(argv[1], "enable");
+    return true;
 }
 
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void)
 {
-	extern char serial_no[9];
-	traceswo_init();
-	gdb_outf("%s:%02X:%02X\n", serial_no, 5, 0x85);
-	return true;
+    extern char serial_no[9];
+    traceswo_init();
+    gdb_outf("%s:%02X:%02X\n", serial_no, 5, 0x85);
+    return true;
 }
 #endif
 
@@ -244,63 +255,77 @@ static bool cmd_traceswo(void)
 #ifdef PLATFORM_HAS_POWERCONTROL
 #include "jaguar.h"
 
-static void cmd_powercontrol_usage()
+static bool cmd_power_target_5V(target *t, int argc, const char **argv)
 {
-    gdb_outf("Usage: power_control (3V|5V) (0|1)\n");
-}
+    (void) t;
 
-static bool cmd_powercontrol(target *t, int argc, const char **argv)
-{
-    (void)t;
+    DEBUG("POWER 5V command, argc=%u\n", argc);
 
-    DEBUG("POWERCONTROL command, argc=%u!!!\n", argc);
-
-    if (argc == 1)
+    if (argc != 2)
     {
-        gdb_outf("Current Power: 3V %s, 5V %s\n",
-             jaguar_target_3V_status() ? "enabled" : "disabled",
-                     jaguar_target_5V_status() ? "enabled" : "disabled");
+        gdb_out("Usage: target_5v (0|1).\n");
+        return false;
     }
-    else if (argc  == 3)
+
+    if (!strcmp(argv[1], "0") || !strcmp(argv[1], "off") || !strcmp(argv[1], "OFF"))
     {
-        if (!strcmp(argv[1], "3V") || !strcmp(argv[1], "3v") )
-        {
-            if (!strcmp(argv[2], "0"))
-            {
-                jaguar_target_3V(0);
-            }
-            else if (!strcmp(argv[2], "1"))
-            {
-                jaguar_target_3V(1);
-            }
-            else
-            {
-                cmd_powercontrol_usage();
-            }
-        }
-        else if (!strcmp(argv[1], "5V") || !strcmp(argv[1], "5v") )
-        {
-            if (!strcmp(argv[2], "0"))
-            {
-                jaguar_target_5V(0);
-            }
-            else if (!strcmp(argv[2], "1"))
-            {
-                jaguar_target_5V(1);
-            }
-            else
-            {
-                cmd_powercontrol_usage();
-            }
-        }
-        else
-        {
-            cmd_powercontrol_usage();
-        }
+        jaguar_target_5V(0);
+        gdb_out("Disabled 5V output\n");
     }
     else
     {
-        cmd_powercontrol_usage();
+        jaguar_target_5V(1);
+        gdb_out("Enabled 5V output\n");
+    }
+
+    return true;
+}
+
+static bool cmd_power_target(target *t, int argc, const char **argv)
+{
+    (void) t;
+
+    DEBUG("POWER command, argc=%u\n", argc);
+
+    if (argc != 2)
+    {
+        gdb_out("Usage: target_voltage (off|2.0|2.5|3.3|3.6|4.2).\n");
+        return false;
+    }
+
+    if (!strcmp(argv[1], "0") || !strcmp(argv[1], "off") || !strcmp(argv[1], "OFF"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_OFF);
+        gdb_out("Disabled target output\n");
+    }
+    else if (!strcmp(argv[1], "2.0"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_2p0);
+        gdb_out("Enabled target output 2.0V\n");
+    }
+    else if (!strcmp(argv[1], "2.5"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_2p5);
+        gdb_out("Enabled target output 2.5V\n");
+    }
+    else if (!strcmp(argv[1], "3.3"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p3);
+        gdb_out("Enabled target output 3.3V\n");
+    }
+    else if (!strcmp(argv[1], "3.6"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p6);
+        gdb_out("Enabled target output 3.6V\n");
+    }
+    else if (!strcmp(argv[1], "4.2"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_4p2);
+        gdb_out("Enabled target output 4.2V\n");
+    }
+    else
+    {
+        gdb_out("Usage: target_voltage (off|2.0|2.5|3.3|3.6|4.2).\n");
     }
 
     return true;

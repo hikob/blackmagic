@@ -1,4 +1,4 @@
-PROBE_HOST ?= jaguar
+PROBE_HOST ?= jaguar-2.1
 PLATFORM_DIR = platforms/$(PROBE_HOST)
 VPATH += $(PLATFORM_DIR)
 
