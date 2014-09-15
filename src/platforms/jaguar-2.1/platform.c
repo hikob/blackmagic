@@ -305,16 +305,17 @@ void jtag_pins_high_z()
     pin_reset();
 
     // GPIO prepare for JTAG INPUT
-    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeInput, 0);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModeInput, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
+
+//    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
     // UART TX as input
-    GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModeInput, 0);
 
     uart_write("HIGH Z\n");
 
@@ -340,7 +341,7 @@ void jtag_pins_active()
 
     // GPIO prepare for JTAG
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeWiredAnd, 1);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
@@ -351,7 +352,7 @@ void jtag_pins_active()
     GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModePushPull, 1);
 
     // Enable target buffer
-    GPIO_PinModeSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN, gpioModePushPull, 0);
+    GPIO_PinOutSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN);
 
     // Reset!!!
     pin_reset();
@@ -460,12 +461,17 @@ int platform_init()
     GPIO_PinModeSet(LED_ERROR_PORT, LED_ERROR_PIN, gpioModeWiredAnd, 1);
     GPIO_PinModeSet(LED_UART_PORT, LED_UART_PIN, gpioModeWiredAnd, 1);
 
+    // Configure target buffer
+    GPIO_PinModeSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN, gpioModePushPull, 1);
+    GPIO_PinOutClear(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN);
+
     // GPIO prepare for JTAG
     jtag_pins_active();
     jaguar_init();
 
     // Start with 3.3V
     jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p3);
+    jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_3p3);
 
     // Initialize USB UART
     usbuart_init(USR_UART, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL,

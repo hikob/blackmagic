@@ -192,7 +192,32 @@ void jaguar_target_select_voltage(enum JaguarVoltage voltage)
 
     // Enable regulator
     GPIO_PinOutSet(TARGET_EN_PORT, TARGET_EN_PIN);
+}
+void jaguar_target_select_vdd_voltage(enum JaguarVddVoltage voltage)
+{
+    // Set all selectable resistors to high Z
+    GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p0_PORT, TARGET_VDD_VOLTAGE_2p0_PIN,
+            gpioModeInput, 0);
+    GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p5_PORT, TARGET_VDD_VOLTAGE_2p5_PIN,
+            gpioModeInput, 0);
+    GPIO_PinModeSet(TARGET_VDD_VOLTAGE_3p3_PORT, TARGET_VDD_VOLTAGE_3p3_PIN,
+            gpioModeInput, 0);
 
+    switch (voltage)
+    {
+    case JAGUAR_VDD_VOLTAGE_2p0:
+        GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p0_PORT, TARGET_VDD_VOLTAGE_2p0_PIN,
+                gpioModePushPull, 0);
+        break;
+    case JAGUAR_VDD_VOLTAGE_2p5:
+        GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p5_PORT, TARGET_VDD_VOLTAGE_2p5_PIN,
+                gpioModePushPull, 0);
+        break;
+    case JAGUAR_VDD_VOLTAGE_3p3:
+        GPIO_PinModeSet(TARGET_VDD_VOLTAGE_3p3_PORT, TARGET_VDD_VOLTAGE_3p3_PIN,
+                gpioModePushPull, 0);
+        break;
+    }
 }
 void jaguar_target_5V(int enable)
 {

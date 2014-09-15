@@ -106,6 +106,14 @@
 #define TARGET_VOLTAGE_4p2_PORT     gpioPortD
 #define TARGET_VOLTAGE_4p2_PIN      6
 
+// Target VDD voltage selection pins
+#define TARGET_VDD_VOLTAGE_2p0_PORT     gpioPortA
+#define TARGET_VDD_VOLTAGE_2p0_PIN      15
+#define TARGET_VDD_VOLTAGE_2p5_PORT     gpioPortE
+#define TARGET_VDD_VOLTAGE_2p5_PIN      15
+#define TARGET_VDD_VOLTAGE_3p3_PORT     gpioPortE
+#define TARGET_VDD_VOLTAGE_3p3_PIN      14
+
 extern jmp_buf fatal_error_jmpbuf;
 
 #define PLATFORM_SET_FATAL_ERROR_RECOVERY()	{setjmp(fatal_error_jmpbuf);}
@@ -122,7 +130,15 @@ enum JaguarVoltage
     JAGUAR_VOLTAGE_4p2,
 };
 
+enum JaguarVddVoltage
+{
+    JAGUAR_VDD_VOLTAGE_2p0,
+    JAGUAR_VDD_VOLTAGE_2p5,
+    JAGUAR_VDD_VOLTAGE_3p3,
+};
+
 void jaguar_target_select_voltage(enum JaguarVoltage voltage);
+void jaguar_target_select_vdd_voltage(enum JaguarVddVoltage voltage);
 void jaguar_target_5V(int enable);
 
 int jaguar_target_voltage_status();

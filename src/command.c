@@ -53,6 +53,7 @@ static bool cmd_traceswo(void);
 #ifdef PLATFORM_HAS_POWERCONTROL
 static bool cmd_power_target_5V(target *t, int argc, const char **argv);
 static bool cmd_power_target(target *t, int argc, const char **argv);
+static bool cmd_power_vdd_target(target *t, int argc, const char **argv);
 #endif
 
 const struct command_s cmd_list[] =
@@ -69,10 +70,12 @@ const struct command_s cmd_list[] =
         { "traceswo", (cmd_handler) cmd_traceswo, "Start trace capture" },
 #endif
 #ifdef PLATFORM_HAS_POWERCONTROL
-        { "target_5v", (cmd_handler) cmd_power_target_5V,
-                "Control the 5V for target: (0|1)" },
-        { "target_voltage", (cmd_handler) cmd_power_target,
-                "Control the voltage for target: (off|2.0|2.5|3.3|3.6|4.2)" },
+        {   "target_5v", (cmd_handler) cmd_power_target_5V,
+            "Control the 5V for target: (0|1)"},
+        {   "target_voltage", (cmd_handler) cmd_power_target,
+            "Control the voltage for target: (off|2.0|2.5|3.3|3.6|4.2)"},
+        {   "target_vdd_voltage", (cmd_handler) cmd_power_vdd_target,
+            "Control the VDD voltage for target: (2.0|2.5|3.3)"},
 #endif
         { NULL, NULL, NULL } };
 
@@ -326,6 +329,41 @@ static bool cmd_power_target(target *t, int argc, const char **argv)
     else
     {
         gdb_out("Usage: target_voltage (off|2.0|2.5|3.3|3.6|4.2).\n");
+    }
+
+    return true;
+}
+static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
+{
+    (void) t;
+
+    DEBUG("POWER command, argc=%u\n", argc);
+
+    if (argc != 2)
+    {
+        gdb_out("Usage: target_vdd_voltage (2.0|2.5|3.3).\n");
+        return false;
+    }
+
+    if (!strcmp(argv[1], "2.0"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p0);
+        gdb_out("Enabled VDD target output 2.0V\n");
+    }
+    else if (!strcmp(argv[1], "2.5"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p5);
+        gdb_out("Enabled VDD target output 2.5V\n");
+    }
+    else if (!strcmp(argv[1], "3.3"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_3p3);
+        gdb_out("Enabled VDD target output 3.3V\n");
+    }
+    else
+    {
+        gdb_out("Usage: target_vdd_voltage (2.0|2.5|3.3).\n");
+        return false;
     }
 
     return true;
