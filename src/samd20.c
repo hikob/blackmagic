@@ -17,13 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* This file implements Atmel SAM D20 target specific functions for
+/* This file implements Atmel SAM D20/D21/R21 target specific functions for
  * detecting the device, providing the XML memory map and Flash memory
  * programming.
  */
-/* Refer to the SAM D20 Datasheet:
+/* Refer to the Atmel Datasheets:
  * http://www.atmel.com/Images/Atmel-42129-SAM-D20_Datasheet.pdf
- * particularly Sections 12. DSU and 20. NVMCTRL
+ * http://www.atmel.com/images/Atmel-42181-SAM-D21_Datasheet.pdf
+ * http://www.atmel.com/images/Atmel-42223-SAM-R21_Datasheet.pdf
+ * particularly Sections DSU and NVMCTRL
  */
 /* TODO: Support for the NVMCTRL Security Bit. If this is set then the
  * device will probably not even be detected.
@@ -131,12 +133,14 @@ static const char samd20_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 #define SAMD20_STATUSA_DONE		(1 << 8)
 
 /* Device Identification Register (DID) */
-#define SAMD20_DID_MASK			0xFFBF0000
-#define SAMD20_DID_CONST_VALUE		0x10000000
-#define SAMD20_DID_DEVSEL_MASK		0x0F
-#define SAMD20_DID_DEVSEL_POS		0
-#define SAMD20_DID_REVISION_MASK	0x0F
-#define SAMD20_DID_REVISION_POS		8
+#define SAMD2X_DID_MASK			0xFF800000
+#define SAMD2X_DID_CONST_VALUE		0x10000000
+#define SAMD2X_DID_SERIES_MASK		0x3F
+#define SAMD2X_DID_SERIES_POS		16
+#define SAMD2X_DID_DEVSEL_MASK		0xFF
+#define SAMD2X_DID_DEVSEL_POS		0
+#define SAMD2X_DID_REVISION_MASK	0x0F
+#define SAMD2X_DID_REVISION_POS		8
 
 /* Peripheral ID */
 #define SAMD20_PID_MASK			0x00F7FFFF
@@ -300,31 +304,56 @@ bool samd20_probe(struct target_s *target)
 		uint32_t did = adiv5_ap_mem_read(ap, SAMD20_DSU_DID);
 
 		/* If the Device ID matches */
-		if ((did & SAMD20_DID_MASK) == SAMD20_DID_CONST_VALUE) {
+		uint8_t series = (did >> SAMD2X_DID_SERIES_POS)
+		  & SAMD2X_DID_SERIES_MASK;
+		if ((did & SAMD2X_DID_MASK) == SAMD2X_DID_CONST_VALUE &&
+		    series <= 1) {
 
-			uint8_t devsel = (did >> SAMD20_DID_DEVSEL_POS)
-			  & SAMD20_DID_DEVSEL_MASK;
-			uint8_t revision = (did >> SAMD20_DID_REVISION_POS)
-			  & SAMD20_DID_REVISION_MASK;
+			uint8_t devsel = (did >> SAMD2X_DID_DEVSEL_POS)
+			  & SAMD2X_DID_DEVSEL_MASK;
+			uint8_t revision = (did >> SAMD2X_DID_REVISION_POS)
+			  & SAMD2X_DID_REVISION_MASK;
 
-			/* Pin Variant */
-			char pin_variant;
-			switch (devsel / 5) {
-				case 0: pin_variant = 'J'; break;
-				case 1: pin_variant = 'G'; break;
-				case 2: pin_variant = 'E'; break;
-				default: pin_variant = 'u'; break;
+			/* series variant */
+			char series_variant = '0' + series;
+
+			/* System, Pin, variant */
+			char sys_variant = 'u';
+			char pin_variant = 'u';
+			uint8_t mem_variant = 0;
+			switch ((devsel & 0xf0) >> 4)
+			{
+				case 0x0: /* D2x variant */
+					sys_variant = 'D';
+					/* Pin Variant */
+					switch (devsel / 5) {
+						case 0: pin_variant = 'J'; break;
+						case 1: pin_variant = 'G'; break;
+						case 2: pin_variant = 'E'; break;
+					}
+					/* Mem Variant */
+					mem_variant = 18 - (devsel % 5);
+					break;
+				case 0x1: /* R2x variant */
+					sys_variant = 'R';
+					devsel -= 0x19;
+					/* Pin Variant */
+					switch (devsel / 3) {
+						case 0: pin_variant = 'G'; break;
+						case 1: pin_variant = 'E'; break;
+					}
+					/* Mem Variant */
+					mem_variant = 18 - (devsel % 3);
+					break;
 			}
-
-			/* Mem Variant */
-			uint8_t mem_variant = 18 - (devsel % 5);
 
 			/* Revision */
 			char revision_variant = 'A' + revision;
 
 			/* Part String */
-			sprintf(variant_string, "Atmel SAMD20%c%dA (rev %c)",
-				pin_variant, mem_variant, revision_variant);
+			sprintf(variant_string, "Atmel SAM%c2%c%c%dA (rev %c)",
+			        sys_variant, series_variant, pin_variant,
+			        mem_variant, revision_variant);
 
 			/* Setup Target */
 			target->driver = variant_string;
@@ -332,7 +361,7 @@ bool samd20_probe(struct target_s *target)
 			target->xml_mem_map = samd20_xml_memory_map;
 			target->flash_erase = samd20_flash_erase;
 			target->flash_write = samd20_flash_write;
-			target_add_commands(target, samd20_cmd_list, "SAMD20");
+			target_add_commands(target, samd20_cmd_list, "SAMD2x");
 
 			/* If we're not in reset here */
 			if (!connect_assert_srst) {
@@ -593,7 +622,12 @@ static uint32_t samd20_flash_size(target *t)
 	uint32_t did = adiv5_ap_mem_read(ap, SAMD20_DSU_DID);
 
 	/* Mask off the device select bits */
-	uint8_t devsel = did & SAMD20_DID_DEVSEL_MASK;
+	uint8_t devsel = did & SAMD2X_DID_DEVSEL_MASK;
+
+	/* Handle the SAMR21 devsel cases */
+	if (devsel & 0x10) {
+		devsel -= 0x14;
+	}
 
 	/* Shift the maximum flash size (256KB) down as appropriate */
 	return (0x40000 >> (devsel % 5));
