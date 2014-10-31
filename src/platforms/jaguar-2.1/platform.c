@@ -447,8 +447,8 @@ int platform_init()
 
     SerialPortInit();
 
-    uart_printf("CDC Test Started %x, rtc freq %u\n", 0x1234,
-            CMU_ClockFreqGet(cmuClock_RTC));
+    uart_printf("CDC Test Started rtc freq %uHz, core clock %uHz\n",
+            CMU_ClockFreqGet(cmuClock_RTC), CMU_ClockFreqGet(cmuClock_CORE));
 
     NVIC_EnableIRQ(GPIO_EVEN_IRQn);
     NVIC_EnableIRQ(GPIO_ODD_IRQn);

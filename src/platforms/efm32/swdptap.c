@@ -28,6 +28,9 @@
 
 #include "gdb_packet.h"
 
+#undef DEBUG
+#define DEBUG(...)
+
 static void swdptap_turnaround(uint8_t dir)
 {
     static uint8_t olddir = 0;

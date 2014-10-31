@@ -101,7 +101,7 @@ extern char print_buf[1024];
 #define uart_printf(...) do { siprintf(print_buf, __VA_ARGS__); uart_write(print_buf);} while (0)
 
 #ifndef DO_DEBUG
-#define DO_DEBUG 0
+#define DO_DEBUG 1
 #endif
 
 #if DO_DEBUG
