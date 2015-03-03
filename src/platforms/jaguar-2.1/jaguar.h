@@ -141,8 +141,9 @@ void jaguar_target_select_voltage(enum JaguarVoltage voltage);
 void jaguar_target_select_vdd_voltage(enum JaguarVddVoltage voltage);
 void jaguar_target_5V(int enable);
 
-int jaguar_target_voltage_status();
-int jaguar_target_5V_status();
+const char* jaguar_target_voltage();
+const char* jaguar_target_vdd_voltage();
+const char* jaguar_target_5V_voltage();
 
 /** Get current Power Sensing status, 1:active 0:inactive */
 int jaguar_power_sensing_status();

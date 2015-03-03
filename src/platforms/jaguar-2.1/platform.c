@@ -469,9 +469,10 @@ int platform_init()
     jtag_pins_active();
     jaguar_init();
 
-    // Start with 3.3V
+    // Start with 3.3V, 5V activated
     jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p3);
     jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_3p3);
+    jaguar_target_5V(1);
 
     // Initialize USB UART
     usbuart_init(USR_UART, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL,

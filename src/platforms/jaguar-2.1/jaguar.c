@@ -82,6 +82,8 @@ static struct
 
     float current, voltage, shunt;
     uint32_t timestamp;
+
+    const char *target_voltage, *target_vdd_voltage, *target_5v_voltage;
 } power;
 
 void jaguar_init()
@@ -120,16 +122,18 @@ void jaguar_init()
     ina226_reg_write(INA226_REG_CONFIGURATION, config_reg);
 
     // Compute the current LSB as max_expected_current/2**15
-    power.current_lsb = 0.04 / (1 << 15);
+    power.current_lsb = 0.16 / (1 << 15);
+
+    float r_shunt = 2;
 
     // Compute calibration register as 0.00512 / (current_lsb * r_shunt)
-    float calib = 0.00512 / (power.current_lsb * 2);
+    float calib = 0.00512 / (power.current_lsb * r_shunt);
 
     // Register is a 16bit unsigned integer, thus convert and round above
     uint16_t calib_reg = (uint16_t) floorf(calib);
 
     // Re-compute and store real current LSB
-    power.current_lsb = 0.00512 / (2 * calib_reg);
+    power.current_lsb = 0.00512 / (r_shunt * calib_reg);
 
     // Write calibration
     ina226_reg_write(INA226_REG_CALIBRATION, calib_reg);
@@ -163,6 +167,7 @@ void jaguar_target_select_voltage(enum JaguarVoltage voltage)
 
     if (voltage == JAGUAR_VOLTAGE_OFF)
     {
+        power.target_voltage = "0";
         return;
     }
 
@@ -171,22 +176,27 @@ void jaguar_target_select_voltage(enum JaguarVoltage voltage)
     case JAGUAR_VOLTAGE_2p0:
         GPIO_PinModeSet(TARGET_VOLTAGE_2p0_PORT, TARGET_VOLTAGE_2p0_PIN,
                 gpioModePushPull, 0);
+        power.target_voltage = "2";
         break;
     case JAGUAR_VOLTAGE_2p5:
         GPIO_PinModeSet(TARGET_VOLTAGE_2p5_PORT, TARGET_VOLTAGE_2p5_PIN,
                 gpioModePushPull, 0);
+        power.target_voltage = "2.5";
         break;
     case JAGUAR_VOLTAGE_3p3:
         GPIO_PinModeSet(TARGET_VOLTAGE_3p3_PORT, TARGET_VOLTAGE_3p3_PIN,
                 gpioModePushPull, 0);
+        power.target_voltage = "3.3";
         break;
     case JAGUAR_VOLTAGE_3p6:
         GPIO_PinModeSet(TARGET_VOLTAGE_3p6_PORT, TARGET_VOLTAGE_3p6_PIN,
                 gpioModePushPull, 0);
+        power.target_voltage = "3.6";
         break;
     case JAGUAR_VOLTAGE_4p2:
         GPIO_PinModeSet(TARGET_VOLTAGE_4p2_PORT, TARGET_VOLTAGE_4p2_PIN,
                 gpioModePushPull, 0);
+        power.target_voltage = "4.2";
         break;
     }
 
@@ -203,19 +213,24 @@ void jaguar_target_select_vdd_voltage(enum JaguarVddVoltage voltage)
     GPIO_PinModeSet(TARGET_VDD_VOLTAGE_3p3_PORT, TARGET_VDD_VOLTAGE_3p3_PIN,
             gpioModeInput, 0);
 
+    power.target_vdd_voltage = "0";
+
     switch (voltage)
     {
     case JAGUAR_VDD_VOLTAGE_2p0:
         GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p0_PORT, TARGET_VDD_VOLTAGE_2p0_PIN,
                 gpioModePushPull, 0);
+        power.target_vdd_voltage = "2";
         break;
     case JAGUAR_VDD_VOLTAGE_2p5:
         GPIO_PinModeSet(TARGET_VDD_VOLTAGE_2p5_PORT, TARGET_VDD_VOLTAGE_2p5_PIN,
                 gpioModePushPull, 0);
+        power.target_vdd_voltage = "2.5";
         break;
     case JAGUAR_VDD_VOLTAGE_3p3:
         GPIO_PinModeSet(TARGET_VDD_VOLTAGE_3p3_PORT, TARGET_VDD_VOLTAGE_3p3_PIN,
                 gpioModePushPull, 0);
+        power.target_vdd_voltage = "3.3";
         break;
     }
 }
@@ -225,22 +240,27 @@ void jaguar_target_5V(int enable)
     {
         DEBUG("Enabling 5V\n");
         GPIO_PinOutSet(TARGET_5V_PORT, TARGET_5V_PIN);
+        power.target_5v_voltage = "5";
     }
     else
     {
         DEBUG("Disabling 5V\n");
         GPIO_PinOutClear(TARGET_5V_PORT, TARGET_5V_PIN);
+        power.target_5v_voltage = "0";
     }
 }
 
-int jaguar_target_3V_status()
+const char* jaguar_target_voltage()
 {
-    return !!GPIO_PinOutGet(TARGET_EN_PORT, TARGET_EN_PIN);
+    return power.target_voltage;
 }
-
-int jaguar_target_5V_status()
+const char* jaguar_target_vdd_voltage()
 {
-    return !!GPIO_PinOutGet(TARGET_5V_PORT, TARGET_5V_PIN);
+    return power.target_vdd_voltage;
+}
+const char* jaguar_target_5V_voltage()
+{
+    return power.target_5v_voltage;
 }
 
 void jaguar_power_sensing(jaguar_power_handler_t power_handler)

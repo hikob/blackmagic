@@ -276,7 +276,8 @@ static bool cmd_power_target_5V(target *t, int argc, const char **argv)
 
     if (argc != 2)
     {
-        gdb_out("Usage: target_5v (0|1).\n");
+        gdb_outf("Usage: target_5v (0|1) current value: %s\n",
+                jaguar_target_5V_voltage());
         return false;
     }
 
@@ -302,7 +303,8 @@ static bool cmd_power_target(target *t, int argc, const char **argv)
 
     if (argc != 2)
     {
-        gdb_out("Usage: target_voltage (off|2.0|2.5|3.3|3.6|4.2).\n");
+        gdb_outf("Usage: target_voltage (off|2|2.5|3.3|3.6|4.2) current value: %s\n",
+                jaguar_target_voltage());
         return false;
     }
 
@@ -311,7 +313,7 @@ static bool cmd_power_target(target *t, int argc, const char **argv)
         jaguar_target_select_voltage(JAGUAR_VOLTAGE_OFF);
         gdb_out("Disabled target output\n");
     }
-    else if (!strcmp(argv[1], "2.0"))
+    else if (!strcmp(argv[1], "2"))
     {
         jaguar_target_select_voltage(JAGUAR_VOLTAGE_2p0);
         gdb_out("Enabled target output 2.0V\n");
@@ -338,7 +340,7 @@ static bool cmd_power_target(target *t, int argc, const char **argv)
     }
     else
     {
-        gdb_out("Usage: target_voltage (off|2.0|2.5|3.3|3.6|4.2).\n");
+        gdb_out("Usage: target_voltage (off|2|2.5|3.3|3.6|4.2).\n");
     }
 
     return true;
@@ -351,11 +353,12 @@ static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
 
     if (argc != 2)
     {
-        gdb_out("Usage: target_vdd_voltage (2.0|2.5|3.3).\n");
+        gdb_outf("Usage: target_vdd_voltage (2|2.5|3.3) current value %s\n",
+                jaguar_target_vdd_voltage());
         return false;
     }
 
-    if (!strcmp(argv[1], "2.0"))
+    if (!strcmp(argv[1], "2"))
     {
         jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p0);
         gdb_out("Enabled VDD target output 2.0V\n");
