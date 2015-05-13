@@ -58,6 +58,7 @@ static bool cmd_power_target_5V(target *t, int argc, const char **argv);
 static bool cmd_power_target(target *t, int argc, const char **argv);
 static bool cmd_power_vdd_target(target *t, int argc, const char **argv);
 #endif
+static bool cmd_reset(target *t, int argc, const char **argv);
 
 const struct command_s cmd_list[] = {
 	{"version", (cmd_handler)cmd_version, "Display firmware version info"},
@@ -81,6 +82,7 @@ const struct command_s cmd_list[] = {
         {   "target_vdd_voltage", (cmd_handler) cmd_power_vdd_target,
             "Control the VDD voltage for target: (2.0|2.5|3.3)"},
 #endif
+	{"reset", (cmd_handler)cmd_reset, "Resets target" },
         { NULL, NULL, NULL } };
 
 int command_process(target *t, char *cmd)
@@ -383,3 +385,21 @@ static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
 }
 
 #endif
+
+static bool cmd_reset(target *t, int argc, const char **argv)
+{
+  (void)argc;
+  (void)argv;
+  DEBUG("Target reset\n");
+
+#if 0
+  target_reset(t);
+#else
+  jtag_srst_set(0);
+  platform_delay(1);
+  jtag_srst_set(1);
+  platform_delay(3);
+#endif
+
+  return true;
+}

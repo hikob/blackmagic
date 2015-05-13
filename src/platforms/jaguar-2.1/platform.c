@@ -302,7 +302,7 @@ void jtag_pins_high_z()
     }
 
     // Reset!!!
-    pin_reset();
+    //pin_reset();
 
     // GPIO prepare for JTAG INPUT
 //    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
@@ -355,7 +355,7 @@ void jtag_pins_active()
     GPIO_PinOutSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN);
 
     // Reset!!!
-    pin_reset();
+    //pin_reset();
 
     uart_write("ACTIVE\n");
     jtag_pins_are_high_z = 0;
