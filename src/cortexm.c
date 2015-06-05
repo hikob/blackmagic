@@ -473,6 +473,11 @@ cortexm_detach(struct target_s *target)
 
 	/* Disable debug */
 	adiv5_ap_mem_write(ap, CORTEXM_DHCSR, CORTEXM_DHCSR_DBGKEY);
+
+	ADIv5_DP_t *dp = ap->dp;
+
+	adiv5_dp_close(dp);
+
 }
 
 static int

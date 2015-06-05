@@ -75,6 +75,29 @@ void adiv5_ap_unref(ADIv5_AP_t *ap)
 	}
 }
 
+void adiv5_dp_close(ADIv5_DP_t *dp){
+
+  	uint32_t ctrlstat;
+	int assert = 0;
+
+	adiv5_dp_ref(dp);
+
+	ctrlstat = adiv5_dp_read(dp, ADIV5_DP_CTRLSTAT);
+
+  	/* Write request for system and debug power up */
+	adiv5_dp_write(dp, ADIV5_DP_CTRLSTAT,
+		       ctrlstat &= ~(ADIV5_DP_CTRLSTAT_CSYSPWRUPREQ |
+				     ADIV5_DP_CTRLSTAT_CDBGPWRUPREQ));
+	/* Wait for acknowledge */
+	do{
+	  ctrlstat = adiv5_dp_read(dp, ADIV5_DP_CTRLSTAT);
+	  assert = ctrlstat & (ADIV5_DP_CTRLSTAT_CSYSPWRUPACK | ADIV5_DP_CTRLSTAT_CDBGPWRUPACK);
+	}while(assert);
+
+	adiv5_dp_unref(dp);
+
+}
+
 void adiv5_dp_init(ADIv5_DP_t *dp)
 {
 	uint32_t ctrlstat;
