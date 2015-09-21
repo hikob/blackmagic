@@ -48,6 +48,17 @@
 #define SRST_PORT   gpioPortB
 #define SRST_PIN    11
 
+/*
+ * MUX
+ */
+#define TARGET_MUX_DATA_PORT  TDO_PORT
+#define TARGET_MUX_DATA_PIN   TDO_PIN
+#define TARGET_MUX_CLK_PORT   TDI_PORT
+#define TARGET_MUX_CLK_PIN    TDI_PIN
+
+#define TARGET_MUX_VDD_SW_PORT SRST_PORT
+#define TARGET_MUX_VDD_SW_PIN  SRST_PIN
+
 // Red LED (led0)
 #define LED_ERROR_PORT  gpioPortD
 #define LED_ERROR_PIN   8

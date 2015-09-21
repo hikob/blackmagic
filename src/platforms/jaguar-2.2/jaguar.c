@@ -623,3 +623,61 @@ static void state_machine(int event)
     }
 }
 
+#define MUX_MAX_OUTPUT 24
+static int mux_active_output = 0;
+
+void
+jaguar_target_mux_push_val(int val){
+
+  if(val){
+    GPIO_PinOutSet(TARGET_MUX_DATA_PORT, TARGET_MUX_DATA_PIN);
+  }else{
+    GPIO_PinOutClear(TARGET_MUX_DATA_PORT, TARGET_MUX_DATA_PIN);
+  }
+  
+  GPIO_PinOutSet(TARGET_MUX_CLK_PORT, TARGET_MUX_CLK_PIN);
+  GPIO_PinOutClear(TARGET_MUX_CLK_PORT, TARGET_MUX_CLK_PIN);
+}
+
+void
+jaguar_target_mux_set_output(int output_no){
+  int i = 0;
+  
+  GPIO_PinModeSet(TARGET_MUX_DATA_PORT, TARGET_MUX_DATA_PIN, gpioModePushPull, 0);
+  GPIO_PinModeSet(TARGET_MUX_CLK_PORT, TARGET_MUX_CLK_PIN, gpioModePushPull, 0);
+
+  GPIO_DriveModeSet(TARGET_MUX_DATA_PORT, gpioDriveModeHigh);
+  GPIO_DriveModeSet(TARGET_MUX_CLK_PORT, gpioDriveModeHigh);
+
+  GPIO_PinOutClear(TARGET_MUX_CLK_PORT, TARGET_MUX_CLK_PIN);
+  
+  for(i = 0; i < MUX_MAX_OUTPUT; i++){
+    jaguar_target_mux_push_val(0);
+  }
+
+  jaguar_target_mux_push_val(1);
+  for(i = 1; i < output_no; i++){
+    jaguar_target_mux_push_val(0);
+  }
+  
+  mux_active_output = output_no;  
+}
+
+int
+jaguar_target_mux_get_output(void){
+  return mux_active_output;
+}
+
+int
+jaguar_target_mux_vdd_switch(int onoffb){
+
+  GPIO_PinModeSet(TARGET_MUX_VDD_SW_PORT, TARGET_MUX_VDD_SW_PIN, gpioModePushPull, 1);
+
+  if(onoffb){
+    GPIO_PinOutSet(TARGET_MUX_VDD_SW_PORT, TARGET_MUX_VDD_SW_PIN);
+    return 1;
+  }else{
+    GPIO_PinOutClear(TARGET_MUX_VDD_SW_PORT, TARGET_MUX_VDD_SW_PIN);
+    return 0;
+  }
+}

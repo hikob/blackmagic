@@ -59,6 +59,8 @@ static bool cmd_power_target(target *t, int argc, const char **argv);
 static bool cmd_power_vdd_target(target *t, int argc, const char **argv);
 #endif
 static bool cmd_reset(target *t, int argc, const char **argv);
+static bool cmd_mux_output(target *t, int argc, const char **argv);
+static bool cmd_mux_vdd_switch(target *t, int argc, const char **argv);
 
 const struct command_s cmd_list[] = {
 	{"version", (cmd_handler)cmd_version, "Display firmware version info"},
@@ -83,7 +85,10 @@ const struct command_s cmd_list[] = {
             "Control the VDD voltage for target: (2.0|2.5|3.3)"},
 #endif
 	{"reset", (cmd_handler)cmd_reset, "Resets target" },
-        { NULL, NULL, NULL } };
+	{"mux_output", (cmd_handler)cmd_mux_output, "Set Mux'd output" },
+	{"mux_vdd_sw", (cmd_handler)cmd_mux_vdd_switch, "Set Mux'd VDD output" },
+
+	{ NULL, NULL, NULL } };
 
 int command_process(target *t, char *cmd)
 {
@@ -388,8 +393,69 @@ static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
 
     return true;
 }
-
 #endif
+
+static bool cmd_mux_vdd_switch(target *t, int argc, const char **argv)
+{
+
+  DEBUG("MUX command, argc=%u\n", argc);
+  int ret = 0;
+  
+  if (argc != 2)
+    {
+      gdb_out("Usage: mux_vdd_sw (on|off)\n");
+      return false;
+    }
+
+  if (!strcmp(argv[1], "on"))
+    {
+      ret = jaguar_target_mux_vdd_switch(1);
+      //gdb_out("Mux'd VDD switched on\n");
+    }
+  else if (!strcmp(argv[1], "off"))
+    {
+      ret = jaguar_target_mux_vdd_switch(0);
+      //gdb_out("Mux'd VDD switched off\n");
+    }
+  else{
+    gdb_out("Usage: mux_vdd_sw (on|off)\n");
+    return false;
+  }
+
+  if(ret){
+    gdb_out("Mux'd VDD switched on\n");
+  }else{
+    gdb_out("Mux'd VDD switched off\n");
+  }  
+  return true;
+}
+
+static bool cmd_mux_output(target *t, int argc, const char **argv)
+{
+    (void) t;
+    int output_no = 0;
+    
+    DEBUG("MUX command, argc=%u\n", argc);
+    
+    if (argc != 2)
+    {
+        gdb_outf("Usage: mux_output [1 - 8] current output %s\n",
+                jaguar_target_mux_get_output());
+        return false;
+    }
+
+    output_no = strtol(argv[1], NULL, 10);
+
+    if((output_no < 1) || (output_no > 24)){
+      gdb_out("Usage: mux_output [1 - 24]\n");
+      return false;
+    }
+
+    jaguar_target_mux_set_output(output_no);
+    gdb_outf("Enabled mux output %d\n", output_no);
+    return true;
+}
+
 
 static bool cmd_reset(target *t, int argc, const char **argv)
 {
