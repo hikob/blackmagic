@@ -355,7 +355,7 @@ static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
 
     if (argc != 2)
     {
-        gdb_outf("Usage: target_vdd_voltage (2|2.5|3.3) current value %s\n",
+        gdb_outf("Usage: target_vdd_voltage (2|2.5|2.8|3.3) current value %s\n",
                 jaguar_target_vdd_voltage());
         return false;
     }
@@ -369,6 +369,11 @@ static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
     {
         jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p5);
         gdb_out("Enabled VDD target output 2.5V\n");
+    }
+    else if (!strcmp(argv[1], "2.8"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p8);
+        gdb_out("Enabled VDD target output 2.8V\n");
     }
     else if (!strcmp(argv[1], "3.3"))
     {

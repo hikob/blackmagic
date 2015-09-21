@@ -384,6 +384,10 @@ void jaguar_target_select_vdd_voltage(enum JaguarVddVoltage voltage)
     val = 92;
     power.target_vdd_voltage = "2.5";
     break;
+  case JAGUAR_VDD_VOLTAGE_2p8:
+    val = 47;
+    power.target_vdd_voltage = "2.8";
+    break;
   case JAGUAR_VDD_VOLTAGE_3p3:
     val= 0;
     power.target_vdd_voltage = "3.3";

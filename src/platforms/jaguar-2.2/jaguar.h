@@ -150,6 +150,7 @@ enum JaguarVddVoltage
 {
     JAGUAR_VDD_VOLTAGE_2p0,
     JAGUAR_VDD_VOLTAGE_2p5,
+    JAGUAR_VDD_VOLTAGE_2p8,
     JAGUAR_VDD_VOLTAGE_3p3,
 };
 
