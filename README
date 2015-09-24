@@ -1,1 +1,7 @@
 See https://github.com/blacksphere/blackmagic/wiki
+
+Compiling:
+
+fetch dependencies (energymicro, libopencm3) with the following command:
+
+	git submodule update --init --recursive
