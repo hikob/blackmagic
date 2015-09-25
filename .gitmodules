@@ -3,4 +3,4 @@
 	url = https://github.com/libopencm3/libopencm3.git
 [submodule "energymicro"]
 	path = energymicro
-	url = git@github.com:EnergyMicro/embedded_software.git
+	url = https://github.com/EnergyMicro/embedded_software.git
