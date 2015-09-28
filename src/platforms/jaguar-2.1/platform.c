@@ -221,7 +221,6 @@ void jtag_tck_set(int val)
 int jtag_tdo_get()
 {
     return GPIO_PinInGet(TDO_PORT, TDO_PIN);
-
 }
 
 void jtag_swdio_set_input()
@@ -286,7 +285,7 @@ void jtag_srst_set(int val)
     }
 }
 
-static inline pin_reset()
+static inline void pin_reset()
 {
     jtag_srst_set(0);
     platform_delay(1);
@@ -303,19 +302,20 @@ void jtag_pins_high_z()
     }
 
     // Reset!!!
-    pin_reset();
+    //pin_reset();
 
     // GPIO prepare for JTAG INPUT
-    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeInput, 0);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModeInput, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
-    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
+
+//    GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModeInput, 0);
+//    GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
     // UART TX as input
-    GPIO_PinModeSet(gpioPortD, 0, gpioModeInput, 0);
+//    GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModeInput, 0);
 
     uart_write("HIGH Z\n");
 
@@ -341,17 +341,21 @@ void jtag_pins_active()
 
     // GPIO prepare for JTAG
     GPIO_PinModeSet(TRST_PORT, TRST_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModeWiredAnd, 1);
+    GPIO_PinModeSet(SRST_PORT, SRST_PIN, gpioModePushPull, 1);
 
     GPIO_PinModeSet(TMS_PORT, TMS_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TCK_PORT, TCK_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TDI_PORT, TDI_PIN, gpioModePushPull, 0);
     GPIO_PinModeSet(TDO_PORT, TDO_PIN, gpioModeInput, 0);
 
-    GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
+    // Enable UART TX pin
+    GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModePushPull, 1);
+
+    // Enable target buffer
+    GPIO_PinOutSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN);
 
     // Reset!!!
-    pin_reset();
+    //pin_reset();
 
     uart_write("ACTIVE\n");
     jtag_pins_are_high_z = 0;
@@ -366,13 +370,15 @@ static inline void send_pin_state(uint32_t rtc_timestamp)
     usbpowercon_pinstatechange(rtc_timestamp, pin_state);
 }
 
+
+
 static inline void gpio_irq_handler()
 {
     uint32_t rtc = RTC_CounterGet();
-    if (GPIO_IntGetEnabled() & (1 << 6))
+    if (GPIO_IntGetEnabled() & (1 << POWER_ALERT_PIN))
     {
         /* clear flag for PA6 interrupt */
-        GPIO_IntClear(1 << 6);
+        GPIO_IntClear(1 << POWER_ALERT_PIN);
         jaguar_power_alert(rtc);
     }
 
@@ -414,7 +420,7 @@ void uart_write(const char* msg)
     const char *c;
     for (c = msg; *c != 0x0; c++)
     {
-        USART_Tx(USART2, *c);
+        USART_Tx(DBG_UART, *c);
     }
 }
 char print_buf[1024];
@@ -441,8 +447,8 @@ int platform_init()
 
     SerialPortInit();
 
-    uart_printf("CDC Test Started %x, rtc freq %u\n", 0x1234,
-            CMU_ClockFreqGet(cmuClock_RTC));
+    uart_printf("CDC Test Started rtc freq %uHz, core clock %uHz\n",
+            CMU_ClockFreqGet(cmuClock_RTC), CMU_ClockFreqGet(cmuClock_CORE));
 
     NVIC_EnableIRQ(GPIO_EVEN_IRQn);
     NVIC_EnableIRQ(GPIO_ODD_IRQn);
@@ -455,12 +461,21 @@ int platform_init()
     GPIO_PinModeSet(LED_ERROR_PORT, LED_ERROR_PIN, gpioModeWiredAnd, 1);
     GPIO_PinModeSet(LED_UART_PORT, LED_UART_PIN, gpioModeWiredAnd, 1);
 
+    // Configure target buffer
+    GPIO_PinModeSet(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN, gpioModePushPull, 1);
+    GPIO_PinOutClear(TARGET_BUF_EN_PORT, TARGET_BUF_EN_PIN);
+
     // GPIO prepare for JTAG
     jtag_pins_active();
     jaguar_init();
 
+    // Start with 3.3V, 5V activated
+    jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p3);
+    jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_3p3);
+    jaguar_target_5V(1);
+
     // Initialize USB UART
-    usbuart_init(USART1, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL,
+    usbuart_init(USR_UART, USART_ROUTE_LOCATION_LOC1, DMAREQ_USART1_TXBL,
             DMAREQ_USART1_RXDATAV);
 
     // Initialize USB Power measure
@@ -659,14 +674,14 @@ static void SerialPortInit(void)
 {
     // Init Debug UART
 
-    USART_TypeDef *uart = USART2;
+    USART_TypeDef *uart = DBG_UART;
     USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
 
     /* Configure GPIO pins */
     CMU_ClockEnable(cmuClock_GPIO, true);
     /* To avoid false start, configure output as high */
-    GPIO_PinModeSet(gpioPortB, 3, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 4, gpioModeInput, 0);
+    GPIO_PinModeSet(DBG_UART_TX_PORT, DBG_UART_TX_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(DBG_UART_RX_PORT, DBG_UART_RX_PIN, gpioModeInput, 0);
 
     /* Enable peripheral clocks */
     CMU_ClockEnable(cmuClock_HFPER, true);
@@ -685,7 +700,7 @@ static void SerialPortInit(void)
     USART_Enable(uart, usartEnable);
 
     // Init pins and clock for JTAG uart
-    GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortD, 1, gpioModeInput, 0);
+    GPIO_PinModeSet(USR_UART_TX_PORT, USR_UART_TX_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(USR_UART_RX_PORT, USR_UART_RX_PIN, gpioModeInput, 0);
     CMU_ClockEnable(cmuClock_USART1, true);
 }

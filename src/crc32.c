@@ -97,14 +97,20 @@ uint32_t crc32_calc(uint32_t crc, uint8_t data)
 uint32_t generic_crc32(struct target_s *target, uint32_t base, int len)
 {
 	uint32_t crc = -1;
-	uint8_t byte;
+	static uint8_t bytes[128];
 
-	while (len--) {
-		if (target_mem_read_bytes(target, &byte, base, 1) != 0)
+	while (len) {
+	    uint32_t read_len = len >= 128 ? 128 : len;
+
+		if (target_mem_read_bytes(target, bytes, base, read_len) != 0)
 			return -1;
 
-		crc = crc32_calc(crc, byte);
-		base++;
+		int i;
+		for (i=0; i<read_len; i++)
+		crc = crc32_calc(crc, bytes[i]);
+
+        base += read_len;
+		len -= read_len;
 	}
 	return crc;
 }

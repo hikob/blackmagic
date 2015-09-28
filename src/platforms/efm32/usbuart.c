@@ -5,6 +5,8 @@
  *      Author: burindes
  */
 
+#define DO_DEBUG 1
+
 #include "em_device.h"
 #include "em_cmu.h"
 #include "em_dma.h"
@@ -17,6 +19,7 @@
 #include "platform.h"
 #include "dmactrl.h"
 #include "efm_usbuart.h"
+
 
 /*** Function prototypes. ***/
 
@@ -33,7 +36,7 @@ EFM32_ALIGN(4)
 EFM32_PACK_START(1)
 cdcLineCoding_TypeDef __attribute__ ((aligned(4))) usbuart_cdclinecoding =
 {
-    500000, 0, 0, 8, 0
+    9600, 0, 0, 8, 0
 };
 EFM32_PACK_END()
 
@@ -65,13 +68,30 @@ static DMA_CB_TypeDef DmaRxCallBack;
 static USART_TypeDef *usbuart_uart;
 static uint32_t usbuart_dmareq_tx;
 static uint32_t usbuart_dmareq_rx;
+static uint32_t usbuart_route;
 
-void usbuart_init(USART_TypeDef *uart, uint32_t dmareq_tx, uint32_t dmareq_rx)
+void usbuart_init(USART_TypeDef *uart, uint32_t route, uint32_t dmareq_tx,
+        uint32_t dmareq_rx)
 {
+    USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
+
+    /* Configure UART for basic async operation */
+    init.enable = usartDisable;
+    init.baudrate = usbuart_cdclinecoding.dwDTERate;
+    DEBUG("init: Setting JTAG UART %u bauds\n", init.baudrate);
+    USART_InitAsync(uart, &init);
+
+    /* Enable pins at USART1 location #1 */
+    uart->ROUTE = USART_ROUTE_RXPEN | USART_ROUTE_TXPEN | route;
+
+    /* Finally enable it */
+    USART_Enable(uart, usartEnable);
+
     // Store
     usbuart_uart = uart;
     usbuart_dmareq_tx = dmareq_tx;
     usbuart_dmareq_rx = dmareq_rx;
+    usbuart_route = route;
 
     // Setup
     DmaSetup();
@@ -96,6 +116,8 @@ void usbuart_start()
     DMA_ActivateBasic(1, true, false, (void *) uartRxBuffer[uartRxIndex],
             (void *) &(usbuart_uart->RXDATA), USB_TX_BUF_SIZ - 1);
     USBTIMER_Start(0, RX_TIMEOUT, UartRxTimeout);
+
+    led_uart_on();
 }
 
 void usbuart_stop()
@@ -103,6 +125,8 @@ void usbuart_stop()
     /* Stop CDC functionality */
     USBTIMER_Stop(0);
     DMA->CHENC = 3; /* Stop DMA channels 0 and 1. */
+
+    led_uart_off();
 }
 
 /**************************************************************************//**
@@ -266,6 +290,7 @@ static void DmaRxComplete(unsigned int channel, bool primary, void *user)
         USBD_Write(EP_UART_IN, (void*) uartRxBuffer[uartRxIndex ^ 1],
                 uartRxCount, UsbDataTransmitted);
         LastUsbTxCnt = uartRxCount;
+        led_uart_toggle();
 
         /* Start a new UART receive DMA. */
         dmaRxCompleted = true;
@@ -353,28 +378,34 @@ static void UartRxTimeout(void)
 int usbuart_LineCodingReceived(USB_Status_TypeDef status, uint32_t xferred,
         uint32_t remaining)
 {
-    uint32_t frame = 0;
     (void) remaining;
 
     /* We have received new serial port communication settings from USB host */
     if ((status == USB_STATUS_OK) && (xferred == 7))
     {
+        USART_InitAsync_TypeDef init = USART_INITASYNC_DEFAULT;
+
+        /* Configure UART for basic async operation */
+        init.enable = usartDisable;
+        init.baudrate = usbuart_cdclinecoding.dwDTERate;
+
         /* Check bDataBits, valid values are: 5, 6, 7, 8 or 16 bits */
         if (usbuart_cdclinecoding.bDataBits == 5)
-            frame |= USART_FRAME_DATABITS_FIVE;
+            init.databits = usartDatabits5;
 
         else if (usbuart_cdclinecoding.bDataBits == 6)
-            frame |= USART_FRAME_DATABITS_SIX;
+            init.databits = usartDatabits6;
 
         else if (usbuart_cdclinecoding.bDataBits == 7)
-            frame |= USART_FRAME_DATABITS_SEVEN;
+            init.databits = usartDatabits7;
 
-        else if (usbuart_cdclinecoding.bDataBits == 8){
-            frame |= USART_FRAME_DATABITS_EIGHT;
+        else if (usbuart_cdclinecoding.bDataBits == 8)
+        {
+            init.databits = usartDatabits8;
         }
 
         else if (usbuart_cdclinecoding.bDataBits == 16)
-            frame |= USART_FRAME_DATABITS_SIXTEEN;
+            init.databits = usartDatabits16;
 
         else
             return USB_STATUS_REQ_ERR;
@@ -382,44 +413,66 @@ int usbuart_LineCodingReceived(USB_Status_TypeDef status, uint32_t xferred,
         /* Check bParityType, valid values are: 0=None 1=Odd 2=Even 3=Mark 4=Space  */
         if (usbuart_cdclinecoding.bParityType == 0)
         {
-            frame |= USART_FRAME_PARITY_NONE;
+            init.parity = usartNoParity;
         }
 
         else if (usbuart_cdclinecoding.bParityType == 1)
-            frame |= USART_FRAME_PARITY_ODD;
+        {
+            init.parity = usartOddParity;
+        }
 
         else if (usbuart_cdclinecoding.bParityType == 2)
-            frame |= USART_FRAME_PARITY_EVEN;
+        {
+            init.parity = usartEvenParity;
+        }
 
         else if (usbuart_cdclinecoding.bParityType == 3)
+        {
             return USB_STATUS_REQ_ERR;
+        }
 
         else if (usbuart_cdclinecoding.bParityType == 4)
+        {
             return USB_STATUS_REQ_ERR;
+        }
 
         else
+        {
             return USB_STATUS_REQ_ERR;
+        }
 
         /* Check bCharFormat, valid values are: 0=1 1=1.5 2=2 stop bits */
         if (usbuart_cdclinecoding.bCharFormat == 0)
         {
-            frame |= USART_FRAME_STOPBITS_ONE;
+            init.stopbits = usartStopbits1;
+        }
+        else if (usbuart_cdclinecoding.bCharFormat == 1)
+        {
+            init.stopbits = usartStopbits1p5;
         }
 
-        else if (usbuart_cdclinecoding.bCharFormat == 1)
-            frame |= USART_FRAME_STOPBITS_ONEANDAHALF;
-
         else if (usbuart_cdclinecoding.bCharFormat == 2)
-            frame |= USART_FRAME_STOPBITS_TWO;
+        {
+            init.stopbits = usartStopbits2;
+        }
 
         else
+        {
             return USB_STATUS_REQ_ERR;
+        }
 
-        /* Program new UART baudrate etc. */
-        usbuart_uart->FRAME = frame;
+        usbuart_stop();
 
-        USART_BaudrateAsyncSet(usbuart_uart, 0, usbuart_cdclinecoding.dwDTERate,
-                usartOVS16);
+        DEBUG("set: Setting JTAG UART %u bauds\n", init.baudrate);
+        USART_InitAsync(usbuart_uart, &init);
+
+        /* Enable pins at USART1 location #1 */
+        usbuart_uart->ROUTE = USART_ROUTE_RXPEN | USART_ROUTE_TXPEN | usbuart_route;
+
+        /* Finally enable it */
+        USART_Enable(usbuart_uart, usartEnable);
+
+        usbuart_start();
 
         return USB_STATUS_OK;
     }

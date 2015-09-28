@@ -159,6 +159,7 @@ typedef struct ADIv5_AP_s {
 } ADIv5_AP_t;
 
 void adiv5_dp_init(ADIv5_DP_t *dp);
+void adiv5_dp_close(ADIv5_DP_t *dp);
 
 void adiv5_dp_ref(ADIv5_DP_t *dp);
 void adiv5_ap_ref(ADIv5_AP_t *ap);

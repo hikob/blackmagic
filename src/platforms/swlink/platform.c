@@ -22,6 +22,7 @@
  * implementation.
  */
 
+#include "platform.h"
 #include <libopencm3/stm32/f1/rcc.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/scb.h>
@@ -30,7 +31,6 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/stm32/f1/adc.h>
 
-#include "platform.h"
 #include "jtag_scan.h"
 #include <usbuart.h>
 
@@ -98,6 +98,11 @@ int platform_init(void)
 	SCB_VTOR = 0x2000;	// Relocate interrupt vector table here
 
 	cdcacm_init();
+
+	// Set recovery point
+	if (setjmp(fatal_error_jmpbuf)) {
+		return 0; // Do nothing on failure
+	}
 
 	jtag_scan(NULL);
 

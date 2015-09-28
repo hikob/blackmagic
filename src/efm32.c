@@ -47,8 +47,26 @@ const struct command_s efm32_cmd_list[] =
 static int efm32_flash_erase(struct target_s *target, uint32_t addr, int len);
 static int efm32_flash_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len);
 
+static const char efm32tg_driver_str[]  = "EFM32TG";
+static const char efm32g_driver_str[]  = "EFM32G";
 static const char efm32lg_driver_str[] = "EFM32LG";
 static const char efm32gg_driver_str[] = "EFM32GG";
+
+static const char efm32tg_xml_memory_map[] = "<?xml version=\"1.0\"?>"
+		"<memory-map>"
+		"  <memory type=\"flash\" start=\"0x00000000\" length=\"0x8000\">"
+		"    <property name=\"blocksize\">0x200</property>"
+		"  </memory>"
+		"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x1000\"/>"
+		"</memory-map>";
+
+static const char efm32g_xml_memory_map[] = "<?xml version=\"1.0\"?>"
+		"<memory-map>"
+		"  <memory type=\"flash\" start=\"0x00000000\" length=\"0x20000\">"
+		"    <property name=\"blocksize\">0x200</property>"
+		"  </memory>"
+		"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x4000\"/>"
+		"</memory-map>";
 
 static const char efm32lg_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 		"<memory-map>"
@@ -136,41 +154,46 @@ static const uint8_t efm32_flash_write_stub[] =
 
 bool efm32_probe(struct target_s *target)
 {
-	uint32_t idcode;
+    uint32_t idcode;
 
-	idcode = adiv5_ap_mem_read(adiv5_target_ap(target), DI_BASE_ADDRESS + DI_PART_NUMBER_OFFSET);
+    idcode = adiv5_ap_mem_read(adiv5_target_ap(target), DI_BASE_ADDRESS + DI_PART_NUMBER_OFFSET);
 
     switch((idcode >> 16) & 0xFF)
     {
-        case EFM_FAMILY_ID_GECKO:
-            return false;
-
-        case EFM_FAMILY_ID_GIANT_GECKO:
-            target->driver      = efm32gg_driver_str;
-            target->xml_mem_map = efm32gg_xml_memory_map;
-            target->flash_erase = efm32_flash_erase;
-            target->flash_write = efm32_flash_write;
-            page_size = 2048;
-            return true;
-
         case EFM_FAMILY_ID_TINY_GECKO:
-            return false;
+            page_size = 512;
+            target->driver      = efm32tg_driver_str;
+            target->xml_mem_map = efm32tg_xml_memory_map;
+            break;
+
+        case EFM_FAMILY_ID_GECKO:
+            page_size = 512;
+            target->driver      = efm32g_driver_str;
+            target->xml_mem_map = efm32g_xml_memory_map;
+            break;
 
         case EFM_FAMILY_ID_LEOPARD_GECKO:
+            page_size = 2048;
             target->driver      = efm32lg_driver_str;
             target->xml_mem_map = efm32lg_xml_memory_map;
-            target->flash_erase = efm32_flash_erase;
-            target->flash_write = efm32_flash_write;
+            break;
+
+        case EFM_FAMILY_ID_GIANT_GECKO:
             page_size = 2048;
+            target->driver      = efm32gg_driver_str;
+            target->xml_mem_map = efm32gg_xml_memory_map;
             break;
 
         default:
             return false;
-	}
-            
+    }
+
+    target->flash_erase = efm32_flash_erase;
+    target->flash_write = efm32_flash_write;
+
     target_add_commands(target, efm32_cmd_list, "EFM32");
 
-	return true;
+    return true;
 }
 
 static int efm32_flash_page_erase(struct target_s *target, uint32_t addr)

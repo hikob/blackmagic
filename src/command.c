@@ -47,12 +47,18 @@ static bool cmd_swdp_scan(void);
 static bool cmd_targets(target *t);
 static bool cmd_morse(void);
 static bool cmd_connect_srst(target *t, int argc, const char **argv);
+#ifdef PLATFORM_HAS_POWER_SWITCH
+static bool cmd_target_power(target *t, int argc, const char **argv);
+#endif
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void);
 #endif
 #ifdef PLATFORM_HAS_POWERCONTROL
-static bool cmd_powercontrol(target *t, int argc, const char **argv);
+static bool cmd_power_target_5V(target *t, int argc, const char **argv);
+static bool cmd_power_target(target *t, int argc, const char **argv);
+static bool cmd_power_vdd_target(target *t, int argc, const char **argv);
 #endif
+static bool cmd_reset(target *t, int argc, const char **argv);
 
 const struct command_s cmd_list[] = {
 	{"version", (cmd_handler)cmd_version, "Display firmware version info"},
@@ -62,15 +68,22 @@ const struct command_s cmd_list[] = {
 	{"targets", (cmd_handler)cmd_targets, "Display list of available targets" },
 	{"morse", (cmd_handler)cmd_morse, "Display morse error message" },
 	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
+#ifdef PLATFORM_HAS_POWER_SWITCH
+	{"tpwr", (cmd_handler)cmd_target_power, "Supplies power to the target: (enable|disable)"},
+#endif
 #ifdef PLATFORM_HAS_TRACESWO
 	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
 #endif
 #ifdef PLATFORM_HAS_POWERCONTROL
-    {"power_control", (cmd_handler)cmd_powercontrol, "Control the target power: (3V|5V) (0|1)" },
+        {   "target_5v", (cmd_handler) cmd_power_target_5V,
+            "Control the 5V for target: (0|1)"},
+        {   "target_voltage", (cmd_handler) cmd_power_target,
+            "Control the voltage for target: (off|2.0|2.5|3.3|3.6|4.2)"},
+        {   "target_vdd_voltage", (cmd_handler) cmd_power_vdd_target,
+            "Control the VDD voltage for target: (2.0|2.5|3.3)"},
 #endif
-	{NULL, NULL, NULL}
-};
-
+	{"reset", (cmd_handler)cmd_reset, "Resets target" },
+        { NULL, NULL, NULL } };
 
 int command_process(target *t, char *cmd)
 {
@@ -228,6 +241,19 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv)
 	return true;
 }
 
+#ifdef PLATFORM_HAS_POWER_SWITCH
+static bool cmd_target_power(target *t, int argc, const char **argv)
+{
+	(void)t;
+	if (argc == 1)
+		gdb_outf("Target Power: %s\n",
+			 !platform_target_get_power() ? "enabled" : "disabled");
+	else
+		platform_target_set_power(!strncmp(argv[1], "enable", strlen(argv[1])));
+	return true;
+}
+#endif
+
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void)
 {
@@ -244,66 +270,141 @@ static bool cmd_traceswo(void)
 #ifdef PLATFORM_HAS_POWERCONTROL
 #include "jaguar.h"
 
-static void cmd_powercontrol_usage()
+static bool cmd_power_target_5V(target *t, int argc, const char **argv)
 {
-    gdb_outf("Usage: power_control (3V|5V) (0|1)\n");
-}
+    (void) t;
 
-static bool cmd_powercontrol(target *t, int argc, const char **argv)
-{
-    (void)t;
+    DEBUG("POWER 5V command, argc=%u\n", argc);
 
-    DEBUG("POWERCONTROL command, argc=%u!!!\n", argc);
-
-    if (argc == 1)
+    if (argc != 2)
     {
-        gdb_outf("Current Power: 3V %s, 5V %s\n",
-             jaguar_target_3V_status() ? "enabled" : "disabled",
-                     jaguar_target_5V_status() ? "enabled" : "disabled");
+        gdb_outf("Usage: target_5v (0|1) current value: %s\n",
+                jaguar_target_5V_voltage());
+        return false;
     }
-    else if (argc  == 3)
+
+    if (!strcmp(argv[1], "0") || !strcmp(argv[1], "off") || !strcmp(argv[1], "OFF"))
     {
-        if (!strcmp(argv[1], "3V") || !strcmp(argv[1], "3v") )
-        {
-            if (!strcmp(argv[2], "0"))
-            {
-                jaguar_target_3V(0);
-            }
-            else if (!strcmp(argv[2], "1"))
-            {
-                jaguar_target_3V(1);
-            }
-            else
-            {
-                cmd_powercontrol_usage();
-            }
-        }
-        else if (!strcmp(argv[1], "5V") || !strcmp(argv[1], "5v") )
-        {
-            if (!strcmp(argv[2], "0"))
-            {
-                jaguar_target_5V(0);
-            }
-            else if (!strcmp(argv[2], "1"))
-            {
-                jaguar_target_5V(1);
-            }
-            else
-            {
-                cmd_powercontrol_usage();
-            }
-        }
-        else
-        {
-            cmd_powercontrol_usage();
-        }
+        jaguar_target_5V(0);
+        gdb_out("Disabled 5V output\n");
     }
     else
     {
-        cmd_powercontrol_usage();
+        jaguar_target_5V(1);
+        gdb_out("Enabled 5V output\n");
+    }
+
+    return true;
+}
+
+static bool cmd_power_target(target *t, int argc, const char **argv)
+{
+    (void) t;
+
+    DEBUG("POWER command, argc=%u\n", argc);
+
+    if (argc != 2)
+    {
+        gdb_outf("Usage: target_voltage (off|2|2.5|3.3|3.6|4.2) current value: %s\n",
+                jaguar_target_voltage());
+        return false;
+    }
+
+    if (!strcmp(argv[1], "0") || !strcmp(argv[1], "off") || !strcmp(argv[1], "OFF"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_OFF);
+        gdb_out("Disabled target output\n");
+    }
+    else if (!strcmp(argv[1], "2"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_2p0);
+        gdb_out("Enabled target output 2.0V\n");
+    }
+    else if (!strcmp(argv[1], "2.5"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_2p5);
+        gdb_out("Enabled target output 2.5V\n");
+    }
+    else if (!strcmp(argv[1], "3.3"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p3);
+        gdb_out("Enabled target output 3.3V\n");
+    }
+    else if (!strcmp(argv[1], "3.6"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_3p6);
+        gdb_out("Enabled target output 3.6V\n");
+    }
+    else if (!strcmp(argv[1], "4.2"))
+    {
+        jaguar_target_select_voltage(JAGUAR_VOLTAGE_4p2);
+        gdb_out("Enabled target output 4.2V\n");
+    }
+    else
+    {
+        gdb_out("Usage: target_voltage (off|2|2.5|3.3|3.6|4.2).\n");
+    }
+
+    return true;
+}
+static bool cmd_power_vdd_target(target *t, int argc, const char **argv)
+{
+    (void) t;
+
+    DEBUG("POWER command, argc=%u\n", argc);
+
+    if (argc != 2)
+    {
+        gdb_outf("Usage: target_vdd_voltage (2|2.5|2.8|3.3) current value %s\n",
+                jaguar_target_vdd_voltage());
+        return false;
+    }
+
+    if (!strcmp(argv[1], "2"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p0);
+        gdb_out("Enabled VDD target output 2.0V\n");
+    }
+    else if (!strcmp(argv[1], "2.5"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p5);
+        gdb_out("Enabled VDD target output 2.5V\n");
+    }
+    else if (!strcmp(argv[1], "2.8"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_2p8);
+        gdb_out("Enabled VDD target output 2.8V\n");
+    }
+    else if (!strcmp(argv[1], "3.3"))
+    {
+        jaguar_target_select_vdd_voltage(JAGUAR_VDD_VOLTAGE_3p3);
+        gdb_out("Enabled VDD target output 3.3V\n");
+    }
+    else
+    {
+        gdb_out("Usage: target_vdd_voltage (2.0|2.5|3.3).\n");
+        return false;
     }
 
     return true;
 }
 
 #endif
+
+static bool cmd_reset(target *t, int argc, const char **argv)
+{
+  (void)argc;
+  (void)argv;
+  DEBUG("Target reset\n");
+
+#if 0
+  target_reset(t);
+#else
+  jtag_srst_set(0);
+  platform_delay(1);
+  jtag_srst_set(1);
+  platform_delay(3);
+#endif
+
+  return true;
+}

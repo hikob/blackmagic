@@ -1,4 +1,4 @@
-PROBE_HOST ?= jaguar
+PROBE_HOST ?= jaguar-2.2
 PLATFORM_DIR = platforms/$(PROBE_HOST)
 VPATH += $(PLATFORM_DIR)
 
@@ -28,8 +28,10 @@ SRC =			\
 	lpc11xx.c	\
 	lpc43xx.c	\
 	main.c		\
+	nrf51.c		\
 	platform.c	\
 	sam3x.c		\
+	samd20.c	\
 	stm32f1.c	\
 	stm32f4.c	\
 	stm32l1.c	\

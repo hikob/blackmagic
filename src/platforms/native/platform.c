@@ -22,6 +22,8 @@
  * implementation.
  */
 
+#include "platform.h"
+
 #include <libopencm3/stm32/f1/rcc.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/scb.h>
@@ -31,7 +33,6 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/stm32/f1/adc.h>
 
-#include "platform.h"
 #include "jtag_scan.h"
 #include <usbuart.h>
 
@@ -139,6 +140,11 @@ int platform_init(void)
 	cdcacm_init();
 	usbuart_init();
 
+	// Set recovery point
+	if (setjmp(fatal_error_jmpbuf)) {
+		return 0; // Do nothing on failure
+	}
+
 	jtag_scan(NULL);
 
 	return 0;
@@ -152,7 +158,18 @@ void platform_srst_set_val(bool assert)
 		gpio_set_val(SRST_PORT, SRST_PIN, !assert);
 	}
 }
-
+bool platform_target_get_power(void) {
+	if (platform_hwversion() > 0) {
+		return gpio_get(PWR_BR_PORT, PWR_BR_PIN);
+  	}
+	return 1; // 1 = Unpowered
+}
+void platform_target_set_power(bool power)
+{
+	if (platform_hwversion() > 0) {
+		gpio_set_val(PWR_BR_PORT, PWR_BR_PIN, !power);
+	}
+}
 void platform_delay(uint32_t delay)
 {
 	timeout_counter = delay;

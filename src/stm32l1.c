@@ -43,6 +43,7 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 			const uint8_t *src, int len);
 
 static const char stm32l1_driver_str[] = "STM32L1xx";
+static const char stm32l0_driver_str[] = "STM32L0xx";
 
 static const char stm32l1_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 /*	"<!DOCTYPE memory-map "
@@ -55,19 +56,40 @@ static const char stm32l1_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 	"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/>"
 	"</memory-map>";
 
+static const char stm32l0_xml_memory_map[] = "<?xml version=\"1.0\"?>"
+/*  "<!DOCTYPE memory-map "
+    "             PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\""
+    "                    \"http://sourceware.org/gdb/gdb-memory-map.dtd\">"*/
+    "<memory-map>"
+    "  <memory type=\"flash\" start=\"0x8000000\" length=\"0x10000\">"
+    "    <property name=\"blocksize\">0x80</property>"
+    "  </memory>"
+    "  <memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/>"
+    "</memory-map>";
+
+#define STM32L1_FLASH_PAGE_SIZE     256
+#define STM32L0_FLASH_PAGE_SIZE     128
+
+#define STM32L_FLASH_PAGE_SIZE(t) ((t->xml_mem_map == stm32l1_xml_memory_map)?STM32L1_FLASH_PAGE_SIZE:STM32L0_FLASH_PAGE_SIZE)
+#define STM32L_FLASH_HALFPAGE_SIZE(t) (STM32L_FLASH_PAGE_SIZE(t) / 2)
+
 /* Flash Controller Register Map */
 #define STM32L1_FLASH_BASE	0x40023C00
-#define STM32L1_FLASH_ACR     (STM32L1_FLASH_BASE + 0x00)
-#define STM32L1_FLASH_PECR    (STM32L1_FLASH_BASE + 0x04)
-#define STM32L1_FLASH_PDKEYR  (STM32L1_FLASH_BASE + 0x08)
-#define STM32L1_FLASH_PEKEYR  (STM32L1_FLASH_BASE + 0x0C)
-#define STM32L1_FLASH_PRGKEYR (STM32L1_FLASH_BASE + 0x10)
-#define STM32L1_FLASH_OPTKEYR (STM32L1_FLASH_BASE + 0x14)
-#define STM32L1_FLASH_SR      (STM32L1_FLASH_BASE + 0x18)
-#define STM32L1_FLASH_OBR     (STM32L1_FLASH_BASE + 0x1C)
-#define STM32L1_FLASH_WRPR1   (STM32L1_FLASH_BASE + 0x20)
-#define STM32L1_FLASH_WRPR2   (STM32L1_FLASH_BASE + 0x80)
-#define STM32L1_FLASH_WRPR3   (STM32L1_FLASH_BASE + 0x84)
+#define STM32L0_FLASH_BASE  0x40022000
+
+#define STM32L_FLASH_BASE_ADDRESS(t) ((t->xml_mem_map == stm32l1_xml_memory_map)?STM32L1_FLASH_BASE:STM32L0_FLASH_BASE)
+
+#define STM32L1_FLASH_ACR(t)     (STM32L_FLASH_BASE_ADDRESS(t) + 0x00)
+#define STM32L1_FLASH_PECR(t)    (STM32L_FLASH_BASE_ADDRESS(t) + 0x04)
+#define STM32L1_FLASH_PDKEYR(t)  (STM32L_FLASH_BASE_ADDRESS(t) + 0x08)
+#define STM32L1_FLASH_PEKEYR(t)  (STM32L_FLASH_BASE_ADDRESS(t) + 0x0C)
+#define STM32L1_FLASH_PRGKEYR(t) (STM32L_FLASH_BASE_ADDRESS(t) + 0x10)
+#define STM32L1_FLASH_OPTKEYR(t) (STM32L_FLASH_BASE_ADDRESS(t) + 0x14)
+#define STM32L1_FLASH_SR(t)      (STM32L_FLASH_BASE_ADDRESS(t) + 0x18)
+#define STM32L1_FLASH_OBR(t)     (STM32L_FLASH_BASE_ADDRESS(t) + 0x1C)
+#define STM32L1_FLASH_WRPR1(t)   (STM32L_FLASH_BASE_ADDRESS(t) + 0x20)
+#define STM32L1_FLASH_WRPR2(t)   (STM32L_FLASH_BASE_ADDRESS(t) + 0x80)
+#define STM32L1_FLASH_WRPR3(t)   (STM32L_FLASH_BASE_ADDRESS(t) + 0x84)
 
 #define STM32L1_FLASH_PECR_FPRG  (1 << 10)
 #define STM32L1_FLASH_PECR_ERASE (1 <<  9)
@@ -84,31 +106,53 @@ static const char stm32l1_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 #define STM32L1_PRGKEY2 0x13141516
 
 #define STM32L1_DBGMCU_IDCODE	0xE0042000
+#define STM32L0_DBGMCU_IDCODE   0x40015800
 
 bool stm32l1_probe(struct target_s *target)
 {
 	uint32_t idcode;
 
+	// IDCODE for STM32L1
 	idcode = adiv5_ap_mem_read(adiv5_target_ap(target), STM32L1_DBGMCU_IDCODE);
+
+	DEBUG("STM32L1 IDCODE %08x\n", idcode);
 	switch(idcode & 0xFFF) {
 	case 0x416:  /* Medium density */
-	case 0x436:  /* High density */
+	case 0x427:  /* Medium+ density*/
+	case 0x436:  /* Medium+/High density */
 		target->driver = stm32l1_driver_str;
 		target->xml_mem_map = stm32l1_xml_memory_map;
 		target->flash_erase = stm32l1_flash_erase;
 		target->flash_write = stm32l1_flash_write;
+
+        DEBUG("STM32L1 valid!\n");
 		return true;
 	}
+
+	// IDCODE for STM32L0
+    idcode = adiv5_ap_mem_read(adiv5_target_ap(target), STM32L0_DBGMCU_IDCODE);
+    DEBUG("STM32L0 IDCODE %08x\n", idcode);
+
+    switch(idcode & 0xFFF) {
+    case 0x417:
+        target->driver = stm32l0_driver_str;
+        target->xml_mem_map = stm32l0_xml_memory_map;
+        target->flash_erase = stm32l1_flash_erase;
+        target->flash_write = stm32l1_flash_write;
+
+        DEBUG("STM32L0 valid!\n");
+        return true;
+    }
 
 	return false;
 }
 
-static void stm32l1_flash_unlock(ADIv5_AP_t *ap)
+static void stm32l1_flash_unlock(struct target_s *target, ADIv5_AP_t *ap)
 {
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PEKEYR, STM32L1_PEKEY1);
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PEKEYR, STM32L1_PEKEY2);
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PRGKEYR, STM32L1_PRGKEY1);
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PRGKEYR, STM32L1_PRGKEY2);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PEKEYR(target), STM32L1_PEKEY1);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PEKEYR(target), STM32L1_PEKEY2);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PRGKEYR(target), STM32L1_PRGKEY1);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PRGKEYR(target), STM32L1_PRGKEY2);
 }
 
 static int stm32l1_flash_erase(struct target_s *target, uint32_t addr, int len)
@@ -116,34 +160,48 @@ static int stm32l1_flash_erase(struct target_s *target, uint32_t addr, int len)
 	ADIv5_AP_t *ap = adiv5_target_ap(target);
 	uint16_t sr;
 
-	addr &= ~255;
-	len &= ~255;
+	uint32_t page_size = STM32L_FLASH_PAGE_SIZE(target);
 
-	stm32l1_flash_unlock(ap);
+	addr &= ~(page_size - 1);
+	len &= ~(page_size - 1);
+
+	stm32l1_flash_unlock(target, ap);
 
 	/* Flash page erase instruction */
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR, STM32L1_FLASH_PECR_ERASE | STM32L1_FLASH_PECR_PROG);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR(target), STM32L1_FLASH_PECR_ERASE | STM32L1_FLASH_PECR_PROG);
+
+	DEBUG("STM32L page size %u\n", page_size);
 
 	/* Read FLASH_SR to poll for BSY bit */
-	while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR) & STM32L1_FLASH_SR_BSY)
+	while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR(target)) & STM32L1_FLASH_SR_BSY)
+	{
 		if(target_check_error(target))
+		{
+	        DEBUG("ERROR 0\n");
 			return -1;
+		}
+	}
 
 	while(len) {
+	    DEBUG("Write 0 at %08x\n", addr);
+
 		/* Write first word of page to 0 */
 		adiv5_ap_mem_write(ap, addr, 0);
 
-		len -= 256;
-		addr += 256;
+		len -= page_size;
+		addr += page_size;
 	}
 
 	/* Disable programming mode */
-	adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR, 0);
+	adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR(target), 0);
 
 	/* Check for error */
-	sr = adiv5_ap_mem_read(ap, STM32L1_FLASH_SR);
+	sr = adiv5_ap_mem_read(ap, STM32L1_FLASH_SR(target));
 	if ((sr & STM32L1_FLASH_SR_ERROR_MASK) || !(sr & STM32L1_FLASH_SR_EOP))
+	{
+        DEBUG("ERROR 1\n");
 		return -1;
+	}
 
 	return 0;
 }
@@ -169,8 +227,8 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 	}
 
 	/* Handle non half-page-aligned start */
-	if(dest & 127 && len >= 4) {
-		uint32_t xlen = 128 - (dest & 127);
+	if((dest & (STM32L_FLASH_HALFPAGE_SIZE(target) - 1)) && (len >= 4)) {
+		uint32_t xlen = STM32L_FLASH_HALFPAGE_SIZE(target) - (dest & (STM32L_FLASH_HALFPAGE_SIZE(target) - 1));
 		if(xlen > len)
 			xlen = len & ~3;
 
@@ -181,25 +239,26 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 	}
 
 	/* Write half-pages */
-	if(len > 128) {
+	if(len > STM32L_FLASH_HALFPAGE_SIZE(target)) {
 		/* Enable half page mode */
-		adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR, STM32L1_FLASH_PECR_FPRG | STM32L1_FLASH_PECR_PROG);
+		adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR(target), STM32L1_FLASH_PECR_FPRG | STM32L1_FLASH_PECR_PROG);
 
 		/* Read FLASH_SR to poll for BSY bit */
-		while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR) & STM32L1_FLASH_SR_BSY)
+		while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR(target)) & STM32L1_FLASH_SR_BSY)
 			if(target_check_error(target))
 				return -1;
 
-		target_mem_write_words(target, dest, (uint32_t*)src, len & ~127);
-		src += len & ~127;
-		dest += len & ~127;
-		len -= len & ~127;
+		uint32_t write_len = len & ~(STM32L_FLASH_HALFPAGE_SIZE(target) - 1);
+		target_mem_write_words(target, dest, (uint32_t*)src, write_len);
+		src += write_len;
+		dest += write_len;
+		len -= write_len;
 
 		/* Disable half page mode */
-		adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR, 0);
+		adiv5_ap_mem_write(ap, STM32L1_FLASH_PECR(target), 0);
 
 		/* Read FLASH_SR to poll for BSY bit */
-		while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR) & STM32L1_FLASH_SR_BSY)
+		while(adiv5_ap_mem_read(ap, STM32L1_FLASH_SR(target)) & STM32L1_FLASH_SR_BSY)
 			if(target_check_error(target))
 				return -1;
 	}
@@ -221,9 +280,14 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 	}
 
 	/* Check for error */
-	sr = adiv5_ap_mem_read(ap, STM32L1_FLASH_SR);
+	sr = adiv5_ap_mem_read(ap, STM32L1_FLASH_SR(target));
 	if ((sr & STM32L1_FLASH_SR_ERROR_MASK) || !(sr & STM32L1_FLASH_SR_EOP))
 		return -1;
 
 	return 0;
+}
+
+static bool stm32l_cmd_erase_mass(target *t)
+{
+    return stm32l1_flash_erase(t, 0x08000000, 65536);
 }

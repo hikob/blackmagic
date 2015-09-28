@@ -2,7 +2,7 @@ CROSS_COMPILE ?= arm-none-eabi-
 CC = $(CROSS_COMPILE)gcc
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
-DEVICE = EFM32LG940F256
+DEVICE = EFM32LG330F256
 
 # This is already set
 #CFLAGS += -Wall -Wextra -Wno-pointer-sign -Wno-char-subscripts\
@@ -55,6 +55,7 @@ SRC += \
     em_gpio.c \
     em_i2c.c \
     em_int.c \
+    em_adc.c \
     em_lcd.c \
     em_rtc.c \
     em_system.c \

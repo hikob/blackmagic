@@ -24,6 +24,10 @@
 #ifndef __PLATFORM_H
 #define __PLATFORM_H
 
+#include <stdint.h>
+#include <libopencm3/cm3/common.h>
+#include <libopencm3/stm32/f1/memorymap.h>
+
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
@@ -35,6 +39,7 @@
 #define INLINE_GPIO
 #define CDCACM_PACKET_SIZE 	64
 #define PLATFORM_HAS_TRACESWO
+#define PLATFORM_HAS_POWER_SWITCH
 #define BOARD_IDENT             "Black Magic Probe"
 #define BOARD_IDENT_DFU		"Black Magic Probe (Upgrade)"
 #define BOARD_IDENT_UPD		"Black Magic Probe (DFU Upgrade)"
@@ -221,9 +226,13 @@ static inline uint16_t _gpio_get(uint32_t gpioport, uint16_t gpios)
 #define gpio_get _gpio_get
 #endif
 
-#endif
 
 #define disconnect_usb() gpio_set_mode(USB_PU_PORT, GPIO_MODE_INPUT, 0, USB_PU_PIN);
 void assert_boot_pin(void);
 void setup_vbus_irq(void);
 void platform_srst_set_val(bool assert);
+bool platform_target_get_power(void);
+void platform_target_set_power(bool power);
+
+#endif
+

@@ -47,9 +47,6 @@
 #include "command.h"
 #include "crc32.h"
 
-#undef DEBUG
-#define DEBUG(...) uart_printf(__VA_ARGS__)
-
 #define BUF_SIZE	1024
 
 #define ERROR_IF_NO_TARGET()	\
@@ -83,6 +80,18 @@ gdb_main(void)
 	DEBUG("Entring GDB protocol main loop\n");
 	/* GDB protocol main loop */
 	while(1) {
+
+	    if (!cdcacm_get_dtr())
+	    {
+	        // Disable the pins
+	        jtag_pins_high_z();
+	    }
+	    else
+	    {
+	        // Activate the pins
+	        jtag_pins_active();
+	    }
+
 		SET_IDLE_STATE(1);
 		size = gdb_getpacket(pbuf, BUF_SIZE);
 		SET_IDLE_STATE(0);
