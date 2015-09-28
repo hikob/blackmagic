@@ -1,1 +1,27 @@
 See https://github.com/blacksphere/blackmagic/wiki
+
+Compiling:
+----------
+
+fetch dependencies (energymicro, libopencm3) with the following command:
+
+	git submodule update --init --recursive
+
+build with: make
+
+output is in ./src/blackmagic.bin
+
+
+Flashing:
+---------
+
+- press "programming" button (top left) on black-magic device
+- plug usb with button pressed
+- minicom -D /dev/ttyACM0
+- type i  (shows bootloader information)
+- type u  (start upload mode)
+- type CRTL-a s
+- select xmodem
+- select blackmagic.bin (to navigate into directory: 'space' 'space')
+- type 'space' then 'enter' (starts upload, wait for completion)
+- type b (boots uploaded firmware)
