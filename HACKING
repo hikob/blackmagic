@@ -3,8 +3,8 @@ See https://github.com/blacksphere/blackmagic/wiki/Hacking
 
 
 Compiling for EnergyMicro
-------------------------------------------------------
-The EnergyMicro emlib library must be fetch first. Run the following commands 
-to setup your environment:
-wget http://cdn.energymicro.com/dl/packages/EM_CMSIS_3.20.2.zip
-unzip EM_CMSIS_3.20.2.zip -d energymicro
+-------------------------
+The EnergyMicro emlib library must be fetched first.
+Run the following command to setup your environment:
+
+git submodule update --init --recursive
